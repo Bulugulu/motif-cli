@@ -123,31 +123,80 @@ motif setup
 
 ## Example Output
 
-See [`examples/`](examples/) for a sample of what Motif generates from real conversation data — including a generated CLAUDE.md, skill files, and analysis report.
+The following was generated from a real developer's Claude Code history (386 messages across 33 sessions). This developer builds a multiplayer game using AI as their sole engineering tool — they design features and direct the AI, but don't write code themselves.
 
-## Validated
+### Discovered Skills
 
-Tested on three real-world datasets with zero false positives:
+**session-startup** — triggered 8+ times
 
-| Dataset | Messages | Skills Found | Rules Found | Profile |
-|---------|----------|-------------|-------------|---------|
-| Strategy/outreach project | 1,067 | 6-8 | 10 | Structured, proactive |
-| Pure coding project | 218 | 4 | 6 | Technical, selective |
-| External user (Claude Code) | 386 | 5 | 8 | Terse, delegates fully |
+> User says "refresh yourself", "we're working in [project] today", or "we shall continue"
 
-## Roadmap
+1. Read project README, STATUS, MEMORY, and recent git log
+2. Summarize: current phase, what's working, what's next
+3. Wait for user direction before acting — do not propose work
 
-- [x] `motif extract` — Cursor + Claude Code extraction
-- [x] `motif list` — Project listing with merge detection
-- [x] `motif analyze --prepare` — Data pipeline with relevance filtering
-- [x] `motif rules` — Generate config files from analysis
-- [x] `motif report` — Summary report generation
-- [x] `motif setup` — Cursor skill installation
-- [ ] `motif analyze --all` — Cross-project analysis
-- [ ] `motif import` — Bring your own JSON/JSONL data
-- [ ] `motif export` — JSON/markdown/text export
-- [ ] `motif badge` — Static SVG for READMEs
-- [ ] PDF report generation
+**bug-fix-iteration** — triggered 30+ times
+
+> User pastes error logs, console output, or says "it's still broken"
+
+1. Read the pasted logs carefully — identify the exact error
+2. Propose a targeted fix (don't refactor unrelated code)
+3. Apply the fix
+4. Ask user to test and report back
+
+**deploy-production** — triggered 8+ times
+
+> User says "deploy", "push to production", or "ship it"
+
+1. cd to project root
+2. Deploy server to Fly.io with --local-only flag
+3. Deploy client from client/ subdirectory to Vercel
+4. Verify both deployments succeeded
+
+### Identified Rules
+
+| Rule | What it enforces | Evidence |
+|------|-----------------|----------|
+| no-regressions | Never break existing functionality when adding new features | *"you broke the camera switching again"* |
+| keep-it-simple | Solve the exact problem stated. Don't add features the user didn't ask for. | *"I just wanted to fix the button, not refactor the whole component"* |
+| step-by-step | When manual action is required, provide numbered lists with exact commands. Don't explain theory. | *"just tell me what to type"* |
+| no-log-flooding | Don't make changes that cause console log flooding. Add reconnection limits. | *"the logs are going crazy again"* |
+
+### Communication Style
+
+| Aspect | Pattern |
+|--------|---------|
+| Brevity | Terse and direct. 1-3 sentences, minimal punctuation, frequent lowercase. |
+| Feedback | Reports results factually. Pastes logs when things break. Says "it works" when things work. |
+| Corrections | Patient but persistent. Will paste logs repeatedly. Pushes back when AI goes in circles. |
+| Proactivity | High. Expects the agent to execute rather than explain options. |
+
+### Generated CLAUDE.md (excerpt)
+
+```markdown
+## Agent Behavior
+
+### Rules
+
+1. Never break existing functionality when adding new features.
+2. Solve the exact problem stated. Don't add features the user didn't ask for.
+3. Use refs for values accessed in callbacks/closures, not React state.
+4. Never paste secrets in responses or store them insecurely.
+5. When manual action is required, provide numbered lists with exact commands.
+6. Don't make changes that cause console log flooding.
+7. Follow the project's documented deployment process exactly.
+8. Provide debug/test buttons for visual features so they can be tested in isolation.
+
+## Workflow Triggers
+
+| When you're... | Load this file |
+|---|---|
+| User says 'refresh yourself' or 'we shall continue' | session-startup/SKILL.md |
+| User pastes error logs or says 'it's still broken' | bug-fix-iteration/SKILL.md |
+| User says 'deploy' or 'ship it' | deploy-production/SKILL.md |
+```
+
+Full example output (analysis JSON, generated CLAUDE.md, skill files, report): [`examples/`](examples/)
 
 ## License
 
