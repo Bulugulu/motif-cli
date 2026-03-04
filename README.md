@@ -2,21 +2,27 @@
 
 **Discover your coding patterns. Generate personalized AI rules.**
 
+[![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
 Motif reads your Cursor and Claude Code conversations, discovers your recurring patterns, and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to your actual working style.
 
 No API key needed. No server. Your data stays on your machine.
 
-## How It Works
-
-1. **Extract** conversations from Cursor and/or Claude Code
-2. **Analyze** — Motif prepares your data and your IDE's agent does the analysis (no external LLM calls)
-3. **Generate** — turn analysis into CLAUDE.md, skills, and rules files routed to the right locations
+![Motif Demo](demo.gif)
 
 ## Install
 
 ```bash
 pip install motif-cli
 ```
+
+## How It Works
+
+1. **Extract** conversations from Cursor and/or Claude Code
+2. **Analyze** — Motif prepares your data and your IDE's agent does the analysis (no external LLM calls)
+3. **Generate** — turn analysis into CLAUDE.md, skills, and rules files routed to the right locations
 
 ## Quick Start
 

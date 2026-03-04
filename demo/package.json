@@ -1,0 +1,21 @@
+{
+  "name": "motif-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "build": "remotion render src/index.ts MotifDemo out/demo.gif --codec=gif --every-nth-frame=2",
+    "build:mp4": "remotion render src/index.ts MotifDemo out/demo.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.399",
+    "@remotion/compositor-win32-x64-msvc": "^4.0.399",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.399"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.3",
+    "typescript": "5.5.4"
+  }
+}

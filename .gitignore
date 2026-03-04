@@ -26,3 +26,8 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Demo (Remotion)
+demo/node_modules/
+demo/out/
+demo/dist/
