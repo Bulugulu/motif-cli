@@ -438,6 +438,70 @@ def report(analysis_file, output, project):
     console.print(f"[green]Report written to:[/green] [cyan]{out_path}[/cyan]")
 
 
+# ── Vibe Report ─────────────────────────────────────────────────────
+
+@cli.command("vibe-report")
+@click.option("--output", "-o", default=None, help="Output file path (default: ~/.motif/reports/vibe-report-{date}.html)")
+@click.option("--analysis", "-a", default=None, type=click.Path(exists=True), help="Analysis JSON for archetype generation")
+@click.option("--name", "-n", default=None, help="Your name for the report header")
+def vibe_report(output, analysis, name):
+    """Generate a shareable HTML vibe report from all extracted conversations.
+
+    Computes metrics across all your projects and produces a visual,
+    self-contained HTML page — your "Spotify Wrapped" for vibe coding.
+    """
+    from motif.store import load_all_conversations
+    from motif.report.metrics import compute_all_metrics
+    from motif.report.html import generate_html_report
+    from motif.config import get_motif_dir
+    from datetime import datetime
+
+    console.print("[bold]Generating your Vibe Report...[/bold]\n")
+
+    all_messages = load_all_conversations()
+    if not all_messages:
+        console.print("[red]No extracted data found. Run 'motif extract all' first.[/red]")
+        raise SystemExit(1)
+
+    console.print(f"  Loaded {len(all_messages)} messages")
+
+    console.print("  Computing metrics...")
+    metrics = compute_all_metrics(all_messages)
+
+    hero = metrics["hero"]
+    conc = metrics["concurrency"]
+    console.print(f"  [dim]Sessions: {hero['total_sessions']} | Projects: {hero['total_projects']} | Autonomy: {hero['autonomy_ratio']}x[/dim]")
+    console.print(f"  [dim]Peak concurrency: {conc['peak_concurrent']} sessions | Avg daily: {conc['avg_daily_peak']:.1f}[/dim]")
+
+    archetype = None
+    if analysis:
+        import json
+        try:
+            with open(analysis, "r", encoding="utf-8") as f:
+                analysis_data = json.load(f)
+            archetype = analysis_data.get("archetype")
+            if archetype:
+                console.print(f"  [dim]Archetype: {archetype.get('name', '?')}[/dim]")
+        except (json.JSONDecodeError, OSError) as e:
+            console.print(f"  [yellow]Warning: could not load analysis file: {e}[/yellow]")
+
+    user_name = name or "Vibe Coder"
+    console.print("  Generating HTML...")
+    html = generate_html_report(metrics, archetype, user_name=user_name)
+
+    if output:
+        from pathlib import Path
+        out_path = Path(output)
+    else:
+        reports_dir = get_motif_dir() / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        out_path = reports_dir / f"vibe-report-{datetime.now().strftime('%Y-%m-%d')}.html"
+
+    out_path.write_text(html, encoding="utf-8")
+    console.print(f"\n[green]Vibe Report written to:[/green] [cyan]{out_path}[/cyan]")
+    console.print(f"Open in a browser to see your report!")
+
+
 # ── Setup ───────────────────────────────────────────────────────────
 
 @cli.command()

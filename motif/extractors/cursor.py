@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from urllib.parse import unquote
 import os
@@ -158,10 +158,20 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
 
         conv_id = comp_data.get("composerId", comp_key.replace("composerData:", ""))
         created_at = comp_data.get("createdAt")
+        last_updated_at = comp_data.get("lastUpdatedAt")
         timestamp = None
+        session_start = None
+        session_end = None
         if created_at and isinstance(created_at, (int, float)):
             try:
-                timestamp = datetime.fromtimestamp(created_at / 1000).strftime("%Y-%m-%d")
+                start_dt = datetime.fromtimestamp(created_at / 1000)
+                timestamp = start_dt.isoformat()
+                session_start = start_dt.isoformat()
+            except (OSError, ValueError):
+                pass
+        if last_updated_at and isinstance(last_updated_at, (int, float)):
+            try:
+                session_end = datetime.fromtimestamp(last_updated_at / 1000).isoformat()
             except (OSError, ValueError):
                 pass
 
@@ -172,6 +182,16 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
         fch = comp_data.get("fullConversationHeadersOnly", [])
         if not fch:
             continue
+        bubble_count = len(fch)
+
+        # Estimate session_end from bubble count when lastUpdatedAt is missing
+        if session_start and not session_end:
+            try:
+                start_dt = datetime.fromisoformat(session_start)
+                duration_min = max(2, bubble_count * 1.5)
+                session_end = (start_dt + timedelta(minutes=duration_min)).isoformat()
+            except (ValueError, TypeError):
+                pass
 
         for entry in fch:
             if not isinstance(entry, dict):
@@ -219,6 +239,8 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
                     "tool_calls": [],
                     "session_id": f"composer:{conv_id}",
                     "conversation_id": conv_id,
+                    "session_start": session_start,
+                    "session_end": session_end,
                 })
 
             elif bubble_type == 2:  # Assistant message
@@ -247,6 +269,8 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
                     "tool_calls": tool_calls,
                     "session_id": f"composer:{conv_id}",
                     "conversation_id": conv_id,
+                    "session_start": session_start,
+                    "session_end": session_end,
                 })
 
     return messages
@@ -627,7 +651,7 @@ def extract_conversations_from_db(db_path: str) -> list[dict]:
     # Build final schema
     result = []
     for m in all_messages:
-        result.append({
+        msg = {
             "role": m["role"],
             "content": m["content"],
             "model": m.get("model"),
@@ -636,7 +660,12 @@ def extract_conversations_from_db(db_path: str) -> list[dict]:
             "files_referenced": m.get("files_referenced", []),
             "tool_calls": m.get("tool_calls", []),
             "session_id": m.get("session_id"),
-        })
+        }
+        if m.get("session_start"):
+            msg["session_start"] = m["session_start"]
+        if m.get("session_end"):
+            msg["session_end"] = m["session_end"]
+        result.append(msg)
     return result
 
 
