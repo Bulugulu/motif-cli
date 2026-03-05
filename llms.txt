@@ -1,8 +1,8 @@
 # Motif
 
-> Discover your coding patterns. Generate personalized AI rules.
+> See how you vibe code. Discover your patterns. Generate personalized AI rules.
 
-Motif is a CLI tool that reads your Cursor and Claude Code conversations, discovers your recurring patterns, and generates personalized CLAUDE.md / .cursorrules / skills files tuned to your actual working style.
+Motif is a CLI tool that reads your Cursor and Claude Code conversations to show you how you work with AI — concurrency patterns, autonomy growth, project constellation, and your personality as a vibe coder. It also discovers recurring patterns and generates personalized CLAUDE.md / .cursorrules / skills files tuned to your actual working style.
 
 ## Key Properties
 

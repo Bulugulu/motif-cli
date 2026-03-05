@@ -1,14 +1,16 @@
 # Motif
 
-**Discover your coding patterns. Generate personalized AI rules.**
+**See how you vibe code. Discover your patterns. Generate personalized AI rules.**
 
 [![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-Motif reads your Cursor and Claude Code conversations, discovers your recurring patterns, and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to your actual working style.
+Motif reads your Cursor and Claude Code conversations to show you how you work with AI — your concurrency patterns, autonomy growth, project constellation, and personality as a vibe coder. It also discovers your recurring patterns and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to your actual working style.
 
 No API key needed. No server. Your data stays on your machine.
+
+![Vibe Report Preview](vibe-report-preview.png)
 
 ![Motif Demo](demo.gif)
 
@@ -227,34 +229,24 @@ Full example output (analysis JSON, generated CLAUDE.md, skill files, report): [
 
 ## Vibe Report
 
-The `vibe-report` command generates a standalone HTML page from your raw extracted conversations — no analysis step needed. Think of it as your coding year-in-review.
+Your "Spotify Wrapped" for vibe coding. One command, no analysis step needed — generates a shareable HTML page directly from your extracted conversations.
 
-**Sample metrics** (from the same 386-message dataset above):
+![Vibe Report Preview](vibe-report-preview.png)
 
+**This sample report** was generated from a real Cursor history — 10,973 sessions across 72 projects over 13 months. Highlights:
+
+- **13.7x autonomy ratio** — the agent performed nearly 14 actions for every human message
+- **9 peak concurrent sessions** — real overlap detected via sweep-line algorithm
+- **+440% specification depth growth** — prompts evolved from 280 to 1,510 characters
+- **+87% tool density growth** — from 22 to 41 tool calls per session
+- **23.7 novels typed** — 11.8M characters of human input
+- **Archetype: "The Commit-and-Push Warlord"** — generated from analysis JSON
+
+```bash
+motif extract all
+motif vibe-report --name "Your Name"
+# Open the HTML file in any browser
 ```
-Hero Stats
-  Total messages:     386       Sessions:    33
-  Projects:           1         Tool calls:  1,247
-  Autonomy ratio:     4.2x      Date range:  Oct 2024 — Feb 2025
-
-Agent Concurrency
-  Peak concurrent:    3 sessions
-  Avg daily peak:     1.4
-
-Growth Scorecard (first 25% → last 25% of sessions)
-  Specification depth:   +38%   (avg prompt length: 89 → 123 chars)
-  Autonomy ratio:        +15%   (3.8x → 4.4x)
-  Session depth:         +22%   (8.2 → 10.0 msgs/session)
-  Tool density:          +41%   (28 → 39 tool calls/session)
-
-Personality
-  Swear count:        47        ("Has opinions")
-  Top catchphrase:    "commit and push" (×15)
-  Longest session:    42 messages
-  Novels typed:       0.12 (61K characters)
-```
-
-Run `motif vibe-report --name "Your Name"` and open the HTML file in a browser to see the full interactive version with charts and visualizations.
 
 ## License
 
