@@ -53,6 +53,9 @@ motif rules analysis-output.json
 
 # Generate a summary report
 motif report analysis-output.json
+
+# Generate your Vibe Report (no analysis needed)
+motif vibe-report --name "Your Name"
 ```
 
 ## Commands
@@ -106,6 +109,30 @@ Generate a summary report from analysis output.
 motif report analysis.json                     # Markdown report
 motif report analysis.json --output report.md  # Custom output path
 ```
+
+### `motif vibe-report`
+
+Generate a shareable HTML vibe report from all extracted conversations — a "Spotify Wrapped" for vibe coding. No analysis step required; works directly from extracted data.
+
+```bash
+motif vibe-report                              # Generate report to ~/.motif/reports/
+motif vibe-report --name "Ada Lovelace"        # Personalized header
+motif vibe-report -o my-report.html            # Custom output path
+motif vibe-report --analysis analysis.json     # Include archetype from analysis
+```
+
+The report is a self-contained HTML file (dark theme, Chart.js visualizations) you can open in any browser or share directly.
+
+**Report sections:**
+
+| Section | What it shows |
+|---------|--------------|
+| Hero Stats | Total messages, sessions, projects, tool calls, autonomy ratio, date range |
+| Agent Concurrency | Peak and average concurrent sessions via sweep-line algorithm, weekly time-series chart |
+| Autonomy Ratio | Agent actions per human message, tracked over time with weekly trend chart |
+| Project Constellation | Galaxy visualization of all projects, sized by message count |
+| Growth Scorecard | First 25% vs last 25% of sessions — specification depth, autonomy, session depth, tool density |
+| Personality | Swear/frustration detection with actual quotes, catchphrases, fun stats (novels typed, longest session, busiest day) |
 
 ### `motif setup`
 
@@ -197,6 +224,37 @@ The following was generated from a real developer's Claude Code history (386 mes
 ```
 
 Full example output (analysis JSON, generated CLAUDE.md, skill files, report): [`examples/`](examples/)
+
+## Vibe Report
+
+The `vibe-report` command generates a standalone HTML page from your raw extracted conversations — no analysis step needed. Think of it as your coding year-in-review.
+
+**Sample metrics** (from the same 386-message dataset above):
+
+```
+Hero Stats
+  Total messages:     386       Sessions:    33
+  Projects:           1         Tool calls:  1,247
+  Autonomy ratio:     4.2x      Date range:  Oct 2024 — Feb 2025
+
+Agent Concurrency
+  Peak concurrent:    3 sessions
+  Avg daily peak:     1.4
+
+Growth Scorecard (first 25% → last 25% of sessions)
+  Specification depth:   +38%   (avg prompt length: 89 → 123 chars)
+  Autonomy ratio:        +15%   (3.8x → 4.4x)
+  Session depth:         +22%   (8.2 → 10.0 msgs/session)
+  Tool density:          +41%   (28 → 39 tool calls/session)
+
+Personality
+  Swear count:        47        ("Has opinions")
+  Top catchphrase:    "commit and push" (×15)
+  Longest session:    42 messages
+  Novels typed:       0.12 (61K characters)
+```
+
+Run `motif vibe-report --name "Your Name"` and open the HTML file in a browser to see the full interactive version with charts and visualizations.
 
 ## License
 

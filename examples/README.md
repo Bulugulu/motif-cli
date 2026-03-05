@@ -15,4 +15,6 @@ This directory contains sample Motif output generated from a real developer's Cl
 - `analysis.json` — Raw analysis output (what the host agent produces)
 - `generated/CLAUDE.md` — Generated project configuration
 - `generated/skills/` — Generated skill files
-- `report.md` — Summary report
+- `report.md` — Summary report (from `motif report`)
+
+**Note:** The Vibe Report (`motif vibe-report`) generates a self-contained HTML file from your own extracted data. Run `motif vibe-report --name "Your Name"` after extracting to see your personalized report with interactive charts.
