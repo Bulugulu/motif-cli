@@ -8,7 +8,7 @@ what to look for when analyzing conversation data.
 
 def get_prompt_version() -> str:
     """Return the version string for this prompt."""
-    return "0.1.0"
+    return "0.2.0"
 
 
 def get_analysis_prompt() -> str:
@@ -25,6 +25,15 @@ You are analyzing AI coding assistant conversation history to discover the user'
    - Look for: trigger phrases, consistent step sequences, repeated file paths
    - Rate confidence: high (5+ occurrences), medium (3-4), low (2)
    - Only recommend skills for patterns that repeat meaningfully
+   - For each skill, provide a rich outline:
+     - `name`: kebab-case slug
+     - `trigger`: when to activate
+     - `purpose`: 1-2 sentences (why this skill exists, what it prevents)
+     - `when_to_use`: specific trigger conditions including "especially when..." and "don't skip when..." patterns
+     - `instructions`: 5-10 step-by-step instructions with decision points and error handling (not just 3-5)
+     - `best_practices`: do/don't patterns observed from conversations
+     - `common_pitfalls`: what goes wrong when workflow isn't followed (problem + solution)
+     - `key_constraints`: non-negotiable rules for this workflow
 
 2. **Correction-derived rules**
    - Where the user pushes back on agent output
@@ -58,7 +67,7 @@ You are analyzing AI coding assistant conversation history to discover the user'
 
 - Don't impose rigid categories; let the data drive the structure
 - Don't recommend skills for one-off occurrences
-- Don't generate complete skill files — just name + trigger + 3-5 step outline
+- Don't generate complete skill files — provide structured outlines with purpose, instructions (5-10 steps), best practices, and pitfalls
 - Don't recommend skills for things too varied to templatize
 
 ### Data notes
@@ -76,7 +85,12 @@ Respond with valid JSON in this structure:
     {
       "name": "string",
       "trigger": "string",
-      "steps": ["step1", "step2", "..."],
+      "purpose": "string (why this skill exists, what it prevents)",
+      "when_to_use": ["condition1", "condition2"],
+      "instructions": ["step1 with decision points", "step2", "..."],
+      "best_practices": ["do X because Y", "don't do Z because W"],
+      "common_pitfalls": [{"problem": "string", "solution": "string"}],
+      "key_constraints": ["non-negotiable rule 1"],
       "evidence": ["quote or summary from conversation"],
       "confidence": "high|medium|low",
       "frequency": "string",

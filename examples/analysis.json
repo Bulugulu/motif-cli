@@ -3,10 +3,35 @@
     {
       "name": "session-startup",
       "trigger": "User says 'refresh yourself', 'we're working in [project] today', or 'we shall continue'",
-      "steps": [
-        "Read project README, STATUS, MEMORY, and recent git log",
-        "Summarize: current phase, what's working, what's next",
-        "Wait for user direction before acting — do not propose work"
+      "purpose": "Ensures the agent is oriented on the current project state before taking action. Prevents the agent from working with stale context or making assumptions about project status.",
+      "when_to_use": [
+        "User opens a new session with any variant of 'refresh yourself'",
+        "User says 'we're working in [project] today' or 'we shall continue'",
+        "Especially when: multiple days have passed since last session",
+        "Don't skip when: returning to a project after working on a different one"
+      ],
+      "instructions": [
+        "Read project README and any STATUS.md or MEMORY.md files",
+        "Check recent git log (last 5-10 commits) for what changed",
+        "Summarize: current phase, what's working, what's blocked, what's next",
+        "If deployment state matters, check production status",
+        "Wait for user direction before acting -- do not propose work unprompted",
+        "If user provides specific direction, acknowledge context and proceed"
+      ],
+      "best_practices": [
+        "Keep the summary concise (3-5 bullet points)",
+        "Mention specific recent changes by name",
+        "Don't dump entire file contents -- summarize",
+        "Avoid proposing work until asked"
+      ],
+      "common_pitfalls": [
+        {"problem": "Agent starts working immediately without reading project state", "solution": "Always read STATUS/README first, even if you think you remember"},
+        {"problem": "Summary is too long and buries the key points", "solution": "Lead with phase and blockers, keep to 3-5 bullets"}
+      ],
+      "key_constraints": [
+        "Never propose work before the user gives direction",
+        "Always read project status files before summarizing",
+        "Summary must be concise enough to read in 10 seconds"
       ],
       "evidence": [
         "'Refresh yourself on the mission and status' (x8 similar)",
@@ -20,11 +45,36 @@
     {
       "name": "session-wrapup",
       "trigger": "User says 'commit and push', 'deploy', 'let's wrap up', or session is ending",
-      "steps": [
-        "Stage and commit changes with descriptive message",
+      "purpose": "Handles end-of-session housekeeping: committing code, pushing to remote, deploying, and summarizing progress. Prevents forgotten commits and undocumented progress.",
+      "when_to_use": [
+        "User says 'commit and push' or 'let's wrap up'",
+        "User says 'deploy' at the end of a session",
+        "Session appears to be ending (user says goodbye or thanks)",
+        "Don't skip when: even small changes were made -- always commit"
+      ],
+      "instructions": [
+        "Run git status to see what changed",
+        "Stage relevant files (ask if unsure which to include)",
+        "Commit with a descriptive message summarizing the session's work",
         "Push to remote",
-        "Deploy to production if changes are ready",
-        "Summarize what was accomplished"
+        "If deployment is requested, follow project-specific deploy process",
+        "Summarize what was accomplished in 3-5 bullet points",
+        "Note any loose ends or TODOs for next session"
+      ],
+      "best_practices": [
+        "Write commit messages that describe the 'why', not just the 'what'",
+        "Don't bundle unrelated changes in one commit",
+        "Always push after committing",
+        "Avoid committing secrets or .env files"
+      ],
+      "common_pitfalls": [
+        {"problem": "Forgetting to push after commit", "solution": "Always push immediately after commit succeeds"},
+        {"problem": "Commit message is vague ('various changes')", "solution": "Summarize the session's main accomplishment in the message"}
+      ],
+      "key_constraints": [
+        "Never commit without a descriptive message",
+        "Always push to remote after committing",
+        "Never commit files containing secrets"
       ],
       "evidence": [
         "'commit and push' (x15 similar)",
@@ -38,11 +88,38 @@
     {
       "name": "bug-fix-iteration",
       "trigger": "User pastes error logs, console output, or says 'it's still broken'",
-      "steps": [
-        "Read the pasted logs carefully — identify the exact error",
-        "Propose a targeted fix (don't refactor unrelated code)",
+      "purpose": "Systematic approach to fixing bugs reported via pasted logs. Prevents the agent from making broad changes that introduce regressions when only a targeted fix is needed.",
+      "when_to_use": [
+        "User pastes error logs, stack traces, or console output",
+        "User says 'it's still broken' or 'that didn't work'",
+        "Especially when: previous fix attempt didn't resolve the issue",
+        "Don't skip when: the error seems 'obvious' -- still follow the process"
+      ],
+      "instructions": [
+        "Read the pasted logs carefully -- identify the exact error message and location",
+        "If error is ambiguous, ask the user one clarifying question before proceeding",
+        "Check if this is a known issue pattern (same file/component as previous bugs)",
+        "Propose a targeted fix that addresses only the specific error",
+        "Do NOT refactor or modify unrelated code in the same change",
         "Apply the fix",
-        "Ask user to test and report back"
+        "Ask user to test and report back",
+        "If fix doesn't work after 2 attempts, step back and investigate root cause more broadly"
+      ],
+      "best_practices": [
+        "Read the entire error message, not just the first line",
+        "Fix one thing at a time -- don't bundle multiple changes",
+        "Don't refactor code that isn't related to the bug",
+        "Always ask the user to verify the fix worked"
+      ],
+      "common_pitfalls": [
+        {"problem": "Agent modifies unrelated code, causing new bugs", "solution": "Only touch files directly related to the reported error"},
+        {"problem": "Agent proposes sweeping refactor instead of targeted fix", "solution": "Fix the bug first; propose refactoring separately if needed"},
+        {"problem": "Going in circles with the same fix approach", "solution": "After 2 failed attempts, investigate root cause from a different angle"}
+      ],
+      "key_constraints": [
+        "Never modify files unrelated to the reported bug",
+        "Always ask the user to verify after applying a fix",
+        "After 2 failed fix attempts, change your investigation approach"
       ],
       "evidence": [
         "User pastes Docker logs, browser console output, or WebSocket errors (30+ occurrences)",
@@ -56,11 +133,33 @@
     {
       "name": "deploy-production",
       "trigger": "User says 'deploy', 'push to production', or 'ship it'",
-      "steps": [
-        "cd to project root",
-        "Deploy server to Fly.io with --local-only flag",
-        "Deploy client from client/ subdirectory to Vercel",
-        "Verify both deployments succeeded"
+      "purpose": "Standardized deployment workflow for this specific project's infrastructure. Prevents deployment failures from skipped steps or wrong order.",
+      "when_to_use": [
+        "User says 'deploy', 'push to production', or 'ship it'",
+        "After a session-wrapup when deployment is requested",
+        "Don't skip when: even if 'nothing changed' -- verify deployment state"
+      ],
+      "instructions": [
+        "cd to project root directory",
+        "Ensure all changes are committed and pushed to remote",
+        "Deploy server to Fly.io: `fly deploy --local-only`",
+        "Deploy client from client/ subdirectory to Vercel: `cd client && vercel --prod`",
+        "Verify both deployments succeeded by checking output",
+        "If either deployment fails, read error output and troubleshoot before retrying"
+      ],
+      "best_practices": [
+        "Always commit and push before deploying",
+        "Deploy server before client to avoid version mismatches",
+        "Check deployment logs for warnings even if deploy 'succeeds'"
+      ],
+      "common_pitfalls": [
+        {"problem": "Deploying from wrong directory", "solution": "Always cd to project root first"},
+        {"problem": "Forgetting the --local-only flag for Fly.io", "solution": "Always use --local-only to avoid remote builder issues"}
+      ],
+      "key_constraints": [
+        "Always deploy from project root",
+        "Use --local-only flag for Fly.io deployments",
+        "Deploy server before client"
       ],
       "evidence": [
         "'deploy to fly and vercel' (x8 similar)",
@@ -74,11 +173,32 @@
     {
       "name": "unity-tool-creation",
       "trigger": "User describes a visual effect, camera angle, or scene element needed",
-      "steps": [
-        "Create C# script for the requested feature",
-        "Add debug/test button so the feature can be tested in isolation",
-        "Integrate with existing camera or scene system",
-        "Provide instructions for testing in Unity Editor"
+      "purpose": "Workflow for creating Unity tools and features that can be tested in isolation. Prevents untestable features in a multiplayer context.",
+      "when_to_use": [
+        "User describes a visual effect or camera angle needed",
+        "User requests a new scene element or UI component for Unity",
+        "Especially when: the feature involves multiplayer elements that are hard to test alone"
+      ],
+      "instructions": [
+        "Clarify the visual requirements if the description is ambiguous",
+        "Create a C# script implementing the requested feature",
+        "Add a debug/test button in the Unity Inspector so the feature can be tested without other players",
+        "Integrate with the existing camera or scene system",
+        "Provide clear instructions for testing in Unity Editor",
+        "Note any dependencies on other systems (WebRTC, multiplayer state)"
+      ],
+      "best_practices": [
+        "Always add a debug button for isolated testing",
+        "Keep new scripts focused on one feature",
+        "Don't modify existing camera systems without discussing first"
+      ],
+      "common_pitfalls": [
+        {"problem": "Feature can't be tested without multiple players connected", "solution": "Add mock/debug mode that simulates multiplayer input"},
+        {"problem": "New script breaks existing camera system", "solution": "Test with existing features enabled before committing"}
+      ],
+      "key_constraints": [
+        "Every visual feature must have a debug/test button",
+        "Don't modify existing camera systems without user approval"
       ],
       "evidence": [
         "'I need a new camera angle for the overhead shot' (x5 similar)",

@@ -21,14 +21,24 @@ Browser-based virtual courtroom game with WebRTC multiplayer, Unity-rendered sce
 
 ### Rules
 
+1. Use refs for values accessed in callbacks/closures, not React state.
+2. Don't make changes that cause console log flooding. Add reconnection limits and debouncing.
+3. Follow the project's documented deployment process exactly.
+4. Provide debug/test buttons for visual features so they can be tested in isolation.
+
+### User Preferences
+
 1. Never break existing functionality when adding new features. Test the happy path after every change.
 2. Solve the exact problem stated. Don't add features the user didn't ask for.
-3. Use refs for values accessed in callbacks/closures, not React state.
-4. Never paste secrets in responses or store them insecurely. Warn if credentials appear in committable files.
-5. When manual action is required, provide numbered lists with exact commands. Don't explain theory.
-6. Don't make changes that cause console log flooding. Add reconnection limits and debouncing.
-7. Follow the project's documented deployment process exactly.
-8. Provide debug/test buttons for visual features so they can be tested in isolation.
+3. Never paste secrets in responses or store them insecurely. Warn if credentials appear in committable files.
+4. When manual action is required, provide numbered lists with exact commands. Don't explain theory.
+
+### Subagent Delegation
+
+Prefer delegating to subagents for complex, multi-step tasks. This prevents overloading the main context window and improves quality.
+
+**When to delegate:** Tasks with 3+ distinct steps, research-heavy work, parallel workstreams, skill file generation.
+**Model selection:** Use fast model for coding tasks, file edits, and implementation. Use default model for planning and architecture.
 
 ## Workflow Triggers
 
@@ -54,3 +64,9 @@ Browser-based virtual courtroom game with WebRTC multiplayer, Unity-rendered sce
   - Proposed rule: Before modifying any file, check if it's directly related to the reported issue. If not, don't touch it.
 - **Agent provides lengthy explanations when user just wants action**
   - Proposed rule: Default to executing the task. Only explain if the user asks 'why' or if there's a risk that needs acknowledgment.
+
+## Pre-Completion Checklist
+
+Before finishing work, verify:
+- [ ] Before modifying any file, check if it's directly related to the reported issue. If not, don't touch it.
+- [ ] Default to executing the task. Only explain if the user asks 'why' or if there's a risk that needs acknowledgment.

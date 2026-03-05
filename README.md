@@ -243,6 +243,10 @@ motif vibe-report --name "Your Name"
 # Open the HTML file in any browser
 ```
 
+## Acknowledgments
+
+Motif's skill quality bar and exemplar skills are adapted from [Antigravity Awesome Skills](https://github.com/sickn33/antigravity-awesome-skills) by sickn33 and contributors (MIT License). See `motif/exemplars/LICENSE` for details.
+
 ## License
 
 MIT
