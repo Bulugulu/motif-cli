@@ -655,6 +655,11 @@ def update():
         success = run_upgrade()
         if success:
             console.print(f"\n[green]Upgraded to {result['latest']}![/green]")
+            from motif.setup_cmd import run_setup
+            from motif.config import get_skill_install_path
+            if get_skill_install_path().exists():
+                console.print("Updating installed Cursor skill...")
+                run_setup(console, auto=True)
         else:
             console.print("\n[red]Upgrade failed.[/red] Try manually: pip install --upgrade motif-cli")
     else:

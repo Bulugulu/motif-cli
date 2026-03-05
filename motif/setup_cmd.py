@@ -9,15 +9,14 @@ from rich.prompt import Confirm
 from motif.config import get_skill_install_path
 
 
-def run_setup(console: Console) -> bool:
+def run_setup(console: Console, auto: bool = False) -> bool:
     """Install the motif-analyze Cursor skill file.
 
     Copies skill/SKILL.md to ~/.cursor/skills/motif-analyze/SKILL.md
     Returns True if successful.
+
+    If auto=True, skips the overwrite confirmation (used after upgrades).
     """
-    # Locate bundled skill file
-    # 1. Project root skill/ (development, pip install -e .)
-    # 2. motif/skill/ (installed package, bundled via package_data)
     package_root = Path(__file__).resolve().parent.parent
     motif_dir = Path(__file__).resolve().parent
     skill_src = package_root / "skill" / "SKILL.md"
@@ -32,7 +31,7 @@ def run_setup(console: Console) -> bool:
     target_path = get_skill_install_path()
     target_dir = target_path.parent
 
-    if target_path.exists():
+    if target_path.exists() and not auto:
         if not Confirm.ask(
             f"Skill already exists at {target_path}. Overwrite?",
             default=True,
@@ -44,8 +43,9 @@ def run_setup(console: Console) -> bool:
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(skill_src, target_path)
-        console.print(f"[green]Done![/green] Installed motif-analyze skill to [cyan]{target_path}[/cyan]")
-        console.print("Trigger phrases: 'analyze my coding patterns', 'generate rules for me', 'motif analyze'")
+        console.print(f"[green]{'Updated' if auto else 'Installed'}![/green] motif-analyze skill at [cyan]{target_path}[/cyan]")
+        if not auto:
+            console.print("Trigger phrases: 'analyze my coding patterns', 'generate rules for me', 'motif analyze'")
         return True
     except PermissionError:
         console.print(f"[red]Error:[/red] Permission denied writing to {target_path}")
