@@ -59,13 +59,70 @@ Use the **AskQuestion** tool to let the user choose which project to analyze. Bu
 
 If the user already specified a project in their original request (e.g., "analyze my patterns for journey-map-makers"), skip the question and use that project.
 
-**Remember the user's choice** — you'll use it in step 3.
+**Remember the user's choice** — you'll use it in subsequent steps.
 
 **If the chosen project has no data:** After running `motif analyze --prepare`, if it reports 0 scoped messages, tell the user: "No conversation history found for [project]. You need to use your AI assistant in this workspace for a while first, then try again."
 
-### 3. Prepare Analysis Data
+### 3. Check Previous Work & Choose Action
 
-Based on the user's choice from step 2, run:
+Run `motif status` to check for existing artifacts:
+
+```bash
+motif status --project <chosen_project>
+```
+
+Parse the output to determine:
+- Whether an **analysis JSON** exists (and its date)
+- Whether **skills/rules** have been generated before (and the date)
+- The **path to the analysis JSON** file (if it exists)
+
+Now use the **AskQuestion** tool to ask what the user wants to do. Build the options dynamically based on what exists:
+
+**Always include these options:**
+
+| id | label |
+|---|---|
+| `full_analysis` | Full analysis — discover patterns, generate skills & rules |
+| `vibe_report` | Vibe Report — your "Spotify Wrapped" for vibe coding (uses all projects) |
+
+**Only include these if a previous analysis JSON exists** (include the date from `motif status` in the label):
+
+| id | label |
+|---|---|
+| `regen_skills` | Regenerate skills only — from your analysis on {date} |
+| `regen_rules` | Regenerate rules only — update CLAUDE.md from your analysis on {date} |
+
+**Example AskQuestion call (when previous analysis exists):**
+
+```
+Title: "What would you like to do?"
+Questions: [{
+  id: "action",
+  prompt: "Choose an action for <project_name>:",
+  options: [
+    { id: "full_analysis", label: "Full analysis — discover patterns, generate skills & rules" },
+    { id: "vibe_report",   label: "Vibe Report — your \"Spotify Wrapped\" for vibe coding" },
+    { id: "regen_skills",  label: "Regenerate skills — from your analysis on Mar 3, 2026" },
+    { id: "regen_rules",   label: "Regenerate rules — update CLAUDE.md from your analysis on Mar 3, 2026" }
+  ]
+}]
+```
+
+**Example AskQuestion call (first run, no previous analysis):**
+
+Only show `full_analysis` and `vibe_report`.
+
+Based on the user's choice, follow the corresponding execution path below.
+
+---
+
+### Path A: Full Analysis (if user chose `full_analysis`)
+
+This is the complete flow — prepare data, analyze, present findings, generate.
+
+#### A1. Prepare Analysis Data
+
+Based on the user's project choice from step 2, run:
 
 **For a specific project:**
 ```bash
@@ -83,7 +140,7 @@ The command prints the path to the prepared output file. **Read that file** usin
 
 **Warning:** If fewer than 20 user messages -> "Limited data available. Analysis may be thin. Consider accumulating more conversation history."
 
-### 4. Analyze the Data
+#### A2. Analyze the Data
 
 The prepared output file contains:
 1. Conversation data (grouped by session)
@@ -97,7 +154,19 @@ The prepared output file contains:
 - Improvement areas
 - Project context
 
-### 5. Present Findings to User
+#### A3. Save Analysis JSON
+
+**Critical:** After producing the analysis JSON, save it to a standardized location so future runs can skip re-analysis:
+
+```
+~/.motif/analysis/analysis-{safe_project}-{YYYY-MM-DD}.json
+```
+
+Where `{safe_project}` uses the same sanitization as the prepared file (alphanumeric, hyphens, underscores — replace everything else with `_`).
+
+Write the full analysis JSON to this file. This enables the "Regenerate skills/rules" shortcuts in future sessions.
+
+#### A4. Present Findings to User
 
 Present your findings in this specific format. The user may not know what Motif is or what this output means, so lead with context and a summary.
 
@@ -152,7 +221,7 @@ Should I generate your skills and update your CLAUDE.md?
 
 **Critical:** End with the question. Do NOT auto-generate. Let the user confirm.
 
-### 6. Search for Existing Skills (NEW STEP)
+#### A5. Search for Existing Skills
 
 Before generating skills from scratch, search for high-quality existing skills that match the discovered patterns.
 
@@ -174,9 +243,59 @@ Before generating skills from scratch, search for high-quality existing skills t
 
 **Skip this step if:** the user explicitly asks to skip search, or if web search tools are unavailable.
 
-### 7. Generate Configuration (via Subagents)
+#### A6. Generate Configuration
 
-When the user approves generation, use **parallel subagents** for speed and quality.
+When the user approves generation, follow the generation steps in **Step 6: Generate Configuration** below.
+
+---
+
+### Path B: Vibe Report (if user chose `vibe_report`)
+
+This path skips analysis entirely and generates the shareable HTML report.
+
+```bash
+motif vibe-report
+```
+
+If the user provided their name in the conversation, pass it:
+```bash
+motif vibe-report --name "User Name"
+```
+
+If an analysis JSON exists from a previous run (check `motif status` output), include it for the archetype section:
+```bash
+motif vibe-report --analysis <path_to_analysis_json> --name "User Name"
+```
+
+The command outputs the path to the HTML file. Tell the user to open it in a browser.
+
+**Done.** No further steps needed for this path.
+
+---
+
+### Path C: Regenerate Skills (if user chose `regen_skills`)
+
+This path skips re-analysis and generates skills from the existing analysis JSON.
+
+1. **Load the analysis JSON** from the path shown in `motif status` output
+2. Read the file using the Read tool
+3. Follow **Step 6: Generate Configuration → B. Generate Skill Files** below (skip CLAUDE.md)
+
+---
+
+### Path D: Regenerate Rules (if user chose `regen_rules`)
+
+This path skips re-analysis and updates CLAUDE.md from the existing analysis JSON.
+
+1. **Load the analysis JSON** from the path shown in `motif status` output
+2. Read the file using the Read tool
+3. Follow **Step 6: Generate Configuration → A. Update CLAUDE.md** below (skip skills)
+
+---
+
+### Step 6: Generate Configuration (via Subagents)
+
+This step is shared by Path A (after user approval), Path C, and Path D. Use **parallel subagents** for speed and quality.
 
 #### A. Update CLAUDE.md (main agent handles this directly)
 
@@ -194,11 +313,11 @@ When the user approves generation, use **parallel subagents** for speed and qual
    > **When to delegate:** Tasks with 3+ distinct steps, research-heavy work, parallel workstreams, skill file generation.
    > **Model selection:** Use fast model for coding tasks and implementation. Use default model for planning and architecture.
 8. Preserve ALL existing content — project overview, architecture docs, existing rules, etc.
-9. Add a comment at the top of the Motif section: `<!-- Generated by Motif v0.2.0 -- review and customize -->`
+9. Add a comment at the top of the Motif section: `<!-- Generated by Motif v0.3.0 -- review and customize -->`
 
 **If CLAUDE.md does NOT exist:**
 1. Create a new CLAUDE.md with all sections above
-2. Add header: `<!-- Generated by Motif v0.2.0 -- review and customize -->`
+2. Add header: `<!-- Generated by Motif v0.3.0 -- review and customize -->`
 
 **Do NOT create .cursorrules** — Cursor reads CLAUDE.md, so one file is sufficient.
 
@@ -214,7 +333,7 @@ When the user approves generation, use **parallel subagents** for speed and qual
 **For each approved skill, launch a subagent (fast model)** with this context:
 1. The skill's analysis data (name, purpose, trigger, instructions, best practices, pitfalls, constraints, evidence)
 2. One relevant exemplar skill as a quality reference
-3. If a matching existing skill was found in step 6, include it with instruction: "Adapt this existing skill for the user's specific patterns"
+3. If a matching existing skill was found in step A5, include it with instruction: "Adapt this existing skill for the user's specific patterns"
 4. The quality bar requirements from QUALITY_BAR.md
 5. Instructions: "Create a `.cursor/skills/{skill-name}/SKILL.md` file. Target 80-200 lines. Match the exemplar's structural depth — sections, tables, decision points, hard gates where appropriate. Personalize with the user's evidence and constraints."
 
@@ -223,7 +342,7 @@ When the user approves generation, use **parallel subagents** for speed and qual
 **Skill file requirements:**
 - 80-200 lines (not the old 20-40 line skeletons)
 - Must include: frontmatter, purpose/overview, when to use, instructions, best practices (if available), common pitfalls (if available), key constraints
-- Add header: `<!-- Generated by Motif v0.2.0 -- review and customize -->`
+- Add header: `<!-- Generated by Motif v0.3.0 -- review and customize -->`
 - User-scoped skills go to `~/.cursor/skills/{skill-name}/SKILL.md`
 - Project-scoped skills go to `.cursor/skills/{skill-name}/SKILL.md`
 
@@ -245,9 +364,11 @@ When the user approves generation, use **parallel subagents** for speed and qual
 
 - **Do NOT skip the extraction step** — data may have changed since last run
 - **Do NOT modify the prepared data file** — read it only
+- **Always save analysis JSON** — after every full analysis, write it to `~/.motif/analysis/analysis-{project}-{date}.json` so future runs can skip re-analysis
+- **Show dates in the action chooser** — include timestamps from `motif status` in the AskQuestion options so users can decide whether to re-analyze or reuse
 - **Lead with summary and context** — the user may not know what Motif is
 - **Show evidence for every rule** — quote the user's own words, cite frequency
-- **Let the user choose** what to generate — don't auto-generate
+- **Let the user choose** what to do and what to generate — don't auto-generate, don't assume they want the full flow every time
 - **Merge into existing CLAUDE.md** — never overwrite existing project documentation
 - **Only generate CLAUDE.md** — do not create separate .cursorrules files
 - **Search before generating** — always check trusted repos for existing skills before creating from scratch

@@ -339,6 +339,119 @@ def analyze(prepare, project, budget, stats, no_filter, preview):
     console.print("Your Cursor agent can read this file and follow the analysis instructions.")
 
 
+# ── Status ──────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--project", "-p", default=None, help="Project to check status for (default: current directory name)")
+def status(project):
+    """Show status of existing Motif artifacts for a project."""
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    from motif.config import get_motif_dir, get_analysis_dir, get_conversations_dir
+    from motif.analysis.pipeline import normalize_project_name
+
+    project = _resolve_project(project, console)
+    safe_project = "".join(c if c.isalnum() or c in "-_" else "_" for c in project)
+    project_normalized = normalize_project_name(project.lower())
+
+    # 1. Last extraction date — conversations matching project
+    conv_dir = get_conversations_dir()
+    extracted_info = None
+    for json_path in conv_dir.rglob("*.json"):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            file_project = data.get("project", "")
+            if normalize_project_name(file_project.lower()) == project_normalized:
+                extracted_at = data.get("extracted_at")
+                msg_count = data.get("message_count", 0)
+                if extracted_at:
+                    dt = datetime.fromisoformat(extracted_at.replace("Z", "+00:00"))
+                    if extracted_info is None or dt > extracted_info[0]:
+                        extracted_info = (dt, msg_count)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # 2. Last analysis prepared — prepared-{safe_project}-*.md
+    analysis_dir = get_analysis_dir()
+    prepared_matches = sorted(analysis_dir.glob(f"prepared-{safe_project}-*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    prepared_info = None
+    if prepared_matches:
+        p = prepared_matches[0]
+        prepared_info = (datetime.fromtimestamp(p.stat().st_mtime), p)
+
+    # 3. Last analysis JSON — analysis-{safe_project}-*.json
+    analysis_json_matches = sorted(analysis_dir.glob(f"analysis-{safe_project}-*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    analysis_json_info = None
+    if analysis_json_matches:
+        p = analysis_json_matches[0]
+        analysis_json_info = (datetime.fromtimestamp(p.stat().st_mtime), p)
+
+    # 4–6. Generated dir: last mtime, skill count, CLAUDE.md
+    gen_dir = get_motif_dir() / "generated"
+    skills_dir = gen_dir / "skills"
+    gen_mtime = None
+    skill_count = 0
+    claude_exists = (gen_dir / "CLAUDE.md").exists()
+    if gen_dir.exists():
+        for f in gen_dir.rglob("*"):
+            if f.is_file():
+                mtime = datetime.fromtimestamp(f.stat().st_mtime)
+                if gen_mtime is None or mtime > gen_mtime:
+                    gen_mtime = mtime
+        if skills_dir.exists():
+            skill_count = sum(1 for f in skills_dir.rglob("*") if f.is_file())
+
+    # Check if any artifacts exist
+    has_any = extracted_info or prepared_info or analysis_json_info or (gen_mtime is not None)
+
+    if not has_any:
+        console.print(f"Motif status for: [bold]{project}[/bold]\n")
+        console.print("  [dim]No artifacts found.[/dim] Run [cyan]motif analyze --prepare --project " + project + "[/cyan] to get started.")
+        return
+
+    def _fmt_date(dt):
+        return dt.strftime("%b %d, %Y %I:%M %p") if hasattr(dt, "strftime") else str(dt)
+
+    console.print(f"Motif status for: [bold]{project}[/bold]\n")
+
+    if extracted_info:
+        dt, count = extracted_info
+        console.print(f"  [bold]Extracted:[/bold]     {_fmt_date(dt)}  ({count} messages)")
+    else:
+        console.print("  [bold]Extracted:[/bold]     [dim]not found[/dim]")
+
+    if prepared_info:
+        dt, path = prepared_info
+        path_str = str(path).replace(str(Path.home()), "~")
+        console.print(f"  [bold]Analysis:[/bold]      {_fmt_date(dt)}  [dim]{path_str}[/dim]")
+    else:
+        console.print("  [bold]Analysis:[/bold]      [dim]not found[/dim]")
+
+    if analysis_json_info:
+        dt, path = analysis_json_info
+        path_str = str(path).replace(str(Path.home()), "~")
+        console.print(f"  [bold]Analysis JSON:[/bold]  {_fmt_date(dt)}  [dim]{path_str}[/dim]")
+    else:
+        console.print("  [bold]Analysis JSON:[/bold]  [dim]not found[/dim]")
+
+    if gen_mtime is not None:
+        parts = []
+        if skill_count:
+            parts.append(f"{skill_count} skills")
+        if claude_exists:
+            parts.append("CLAUDE.md")
+        suffix = f"  ({', '.join(parts)})" if parts else ""
+        console.print(f"  [bold]Generated:[/bold]    {_fmt_date(gen_mtime)}{suffix}")
+    else:
+        console.print("  [bold]Generated:[/bold]    [dim]not found[/dim]")
+
+    if not analysis_json_info and (extracted_info or prepared_info):
+        console.print("\n  [yellow]No analysis JSON found.[/yellow] Run a full analysis to enable quick regeneration of skills/rules.")
+
+
 # ── Rules ───────────────────────────────────────────────────────────
 
 @cli.command()

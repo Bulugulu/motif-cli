@@ -27,6 +27,9 @@ Thumbs.db
 .env
 .env.local
 
+# Tests (local development only)
+tests/
+
 # Demo (Remotion)
 demo/node_modules/
 demo/out/
