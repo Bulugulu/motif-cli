@@ -144,6 +144,16 @@ Install the `motif-analyze` Cursor skill for seamless agent integration.
 motif setup
 ```
 
+### `motif update`
+
+Check for newer versions on PyPI and upgrade with a single command.
+
+```bash
+motif update
+```
+
+Motif also checks for updates automatically once per day when you run any command, and prints a notice if a newer version is available.
+
 ## What It Extracts
 
 **Cursor IDE** — Reads `state.vscdb`, extracts user/assistant dialogue organized by project. Captures messages, file references, tool usage, and model info.

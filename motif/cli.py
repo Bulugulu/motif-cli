@@ -11,13 +11,17 @@ console = Console()
 
 @click.group()
 @click.version_option(version=motif.__version__, prog_name="motif")
-def cli():
+@click.pass_context
+def cli(ctx):
     """Motif — discover your coding patterns from AI conversations.
 
     Analyze your Cursor and Claude Code conversations to generate
     personalized .cursorrules, CLAUDE.md, and skills files.
     """
-    pass
+    ctx.ensure_object(dict)
+    if ctx.invoked_subcommand != "update":
+        from motif.update import print_update_notice
+        print_update_notice(console)
 
 
 # ── Extract ─────────────────────────────────────────────────────────
@@ -622,6 +626,39 @@ def setup():
     """Install the motif-analyze Cursor skill for agent integration."""
     from motif.setup_cmd import run_setup
     run_setup(console)
+
+
+# ── Update ──────────────────────────────────────────────────────────
+
+@cli.command()
+def update():
+    """Check for updates and upgrade motif-cli if a newer version is available."""
+    from motif.update import check_for_update, run_upgrade
+
+    console.print("Checking for updates...")
+    result = check_for_update(force=True)
+
+    if result is None:
+        console.print("[yellow]Could not reach PyPI. Check your internet connection.[/yellow]")
+        return
+
+    if not result["update_available"]:
+        console.print(f"[green]You're on the latest version ({result['current']}).[/green]")
+        return
+
+    console.print(
+        f"[yellow]Update available:[/yellow] {result['current']} → [bold]{result['latest']}[/bold]\n"
+    )
+
+    if click.confirm("Upgrade now?", default=True):
+        console.print(f"Running: pip install --upgrade motif-cli\n")
+        success = run_upgrade()
+        if success:
+            console.print(f"\n[green]Upgraded to {result['latest']}![/green]")
+        else:
+            console.print("\n[red]Upgrade failed.[/red] Try manually: pip install --upgrade motif-cli")
+    else:
+        console.print("Skipped. Run [cyan]pip install --upgrade motif-cli[/cyan] anytime.")
 
 
 # ── Entry point ─────────────────────────────────────────────────────

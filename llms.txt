@@ -27,6 +27,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and tur
 - `motif report <analysis.json>` — Generate summary report
 - `motif vibe-report` — Generate a shareable HTML vibe report ("Spotify Wrapped" for vibe coding) from extracted conversations. Self-contained HTML with dark theme, Chart.js charts. Sections: hero stats, agent concurrency (sweep-line algorithm), autonomy ratio timeline, project constellation, growth scorecard, personality/catchphrases. Flags: `--name`, `--output`, `--analysis`
 - `motif setup` — Install Cursor skill for zero-friction agent integration
+- `motif update` — Check for newer versions and upgrade
 
 ## Install
 
