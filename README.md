@@ -1,18 +1,18 @@
 # Motif
 
-**See how you vibe code. Discover your patterns. Generate personalized AI rules.**
+**How good of a vibe coder are you?** Motif generates your personal assessment.
 
 [![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-Motif reads your Cursor and Claude Code conversations to show you how you work with AI — your concurrency patterns, autonomy growth, project constellation, and personality as a vibe coder. It also discovers your recurring patterns and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to your actual working style.
+Motif reads your Cursor and Claude Code conversations and turns them into a shareable report — how many sessions you run in parallel, how much you've grown, what your AI personality looks like. It also discovers your recurring workflows and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to how you actually work.
 
 No API key needed. No server. Your data stays on your machine.
 
-![Vibe Report Preview](vibe-report-preview.png)
-
 ![Motif Demo](demo.gif)
+
+![Vibe Report Hero](vibe-report-hero.png)
 
 ## Install
 
@@ -227,20 +227,15 @@ The following was generated from a real developer's Claude Code history (386 mes
 
 Full example output (analysis JSON, generated CLAUDE.md, skill files, report): [`examples/`](examples/)
 
-## Vibe Report
+## Sample Vibe Report
 
-Your "Spotify Wrapped" for vibe coding. One command, no analysis step needed — generates a shareable HTML page directly from your extracted conversations.
+Generated from a real Cursor history — 10,973 sessions across 72 projects over 13 months.
 
-![Vibe Report Preview](vibe-report-preview.png)
+![Vibe Report Hero](vibe-report-hero.png)
 
-**This sample report** was generated from a real Cursor history — 10,973 sessions across 72 projects over 13 months. Highlights:
+![Agent Concurrency](vibe-report-concurrency.png)
 
-- **13.7x autonomy ratio** — the agent performed nearly 14 actions for every human message
-- **9 peak concurrent sessions** — real overlap detected via sweep-line algorithm
-- **+440% specification depth growth** — prompts evolved from 280 to 1,510 characters
-- **+87% tool density growth** — from 22 to 41 tool calls per session
-- **23.7 novels typed** — 11.8M characters of human input
-- **Archetype: "The Commit-and-Push Warlord"** — generated from analysis JSON
+![Your Vibe, Decoded](vibe-report-personality.png)
 
 ```bash
 motif extract all
