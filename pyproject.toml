@@ -7,7 +7,7 @@ name = "motif-cli"
 version = "0.3.1"
 description = "Discover your coding patterns from AI conversations. Generate personalized .cursorrules, CLAUDE.md, and skills."
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [
     {name = "Aviv Sheriff", email = "aviv@howyougotthere.com"},
@@ -16,7 +16,7 @@ keywords = ["cursor", "claude-code", "ai", "coding-patterns", "developer-tools",
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

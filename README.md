@@ -1,66 +1,105 @@
-# Motif
+# Process is the new credential
 
-**How good of a vibe coder are you?** Motif generates your personal assessment.
+**Motif reads your AI coding conversations and generates your Agentic Coding Assessment.**
 
 [![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-
-Motif reads your Cursor and Claude Code conversations and turns them into a shareable report — how many sessions you run in parallel, how much you've grown, what your AI personality looks like. It also discovers your recurring workflows and generates personalized `CLAUDE.md` / `.cursorrules` / skills files tuned to how you actually work.
-
-No API key needed. No server. Your data stays on your machine.
 
 ![Motif Demo](demo.gif)
 
 ![Vibe Report Hero](vibe-report-hero.png)
 
-## Install
+## 🔭 What We Believe
 
-```bash
-pip install motif-cli
+Resumes are dead. They just don't know it yet.
+
+[Y Combinator now asks founders to submit AI coding transcripts](https://officechai.com/ai/yc-applications-now-ask-founders-to-show-a-coding-agent-session-theyre-proud-of/) instead of GitHub links. This is the beginning. Your conversations with AI — how you prompt, debug, architect, recover — are a better signal of who you are than any credential.
+
+**We believe:**
+- Your AI coding transcripts will replace the resume.
+- How you work with AI reveals more than any credential or interview.
+- Users should own and control their data — in a world that will increasingly seek to manipulate it.
+
+Motif exists to help you understand, own, and leverage the most honest record of how you build things.
+
+> LinkedIn shows who you *claim* to be. Motif discovers who you *are*.
+
+## 🔮 Where This Is Going
+
+Motif is built by [HowYouGotThere](https://howyougotthere.com).
+
+Today, your AI coding transcripts are the most honest record of how you build. Tomorrow, they'll be how you get hired, get into school, find collaborators. The resume is a relic of a world where you couldn't observe how someone actually works. That world is ending.
+
+We're building toward a future where your learning journey *is* your resume — and opportunities find you. Motif is step one.
+
+## 💾 Why Save Your Transcripts
+
+Most AI coding tools auto-delete conversation logs after 30 days. That data is gone forever.
+
+Motif extracts and stores your conversations locally before they disappear. This matters because:
+
+- **Growth tracking** — Motif doesn't just show a snapshot. It measures how you're improving over time: specification depth, autonomy ratio, tool usage, session complexity. Your first month vs. your sixth month tells a story.
+- **Compounding value** — The more history you have, the richer your assessment. A year of transcripts is worth dramatically more than a week.
+- **Your data, your machine** — No server, no API keys. Everything stays in `~/.motif/conversations/`. You own it.
+
+## ⚙️ How It Works
+
+```
+AI Coding Tools              Local Storage                Assessment
+─────────────────           ─────────────                ─────────────────
+
+Cursor IDE         ┐
+Claude Code CLI    ┤
+                   ├──────►  ~/.motif/conversations/  ──────►  Agentic Coding Assessment
+SpecStory ¹        ┤          (Extracted Locally)              + CLAUDE.md / .cursorrules
+Windsurf ²         ┤                                           + Discovered Skills
+GitHub Copilot ²   ┘
+
+¹ Coming soon   ² Planned
 ```
 
-## How It Works
+## 🔄 Workflow
 
-1. **Extract** conversations from Cursor and/or Claude Code
-2. **Analyze** — Motif prepares your data and your IDE's agent does the analysis (no external LLM calls)
-3. **Generate** — turn analysis into CLAUDE.md, skills, and rules files routed to the right locations
+1. **Install** — `pip install motif-cli`
+2. **Setup** — `motif setup` installs a skill into your Cursor IDE.
+3. **Analyze** — Tell your agent: *"analyze my coding patterns"*. The skill handles extraction, data prep, and analysis — all inside your IDE, no external calls.
+4. **Generate** — Motif produces your Agentic Coding Assessment, personalized `CLAUDE.md`, `.cursorrules`, and skill files tuned to how you actually work.
 
-## Quick Start
-
-### Option A: Agent-driven (recommended)
-
-If you use Cursor, install the Motif skill so your agent handles everything:
+Or use the CLI directly:
 
 ```bash
-motif setup
+motif extract all                      # Pull conversations from all sources
+motif vibe-report --name "Your Name"   # Generate your Agentic Coding Assessment
+motif analyze --prepare                # Prepare data for pattern analysis
 ```
 
-Then just tell your agent: **"analyze my coding patterns"** — it handles extraction, analysis, and generation.
+## 🛠️ Supported Tools
 
-### Option B: Manual CLI
+| Tool | Status | How It Extracts |
+|------|--------|----------------|
+| **[Cursor IDE](https://cursor.com)** | ✅ Supported | Reads `state.vscdb` — messages, file refs, tool usage, model info |
+| **[Claude Code](https://claude.ai/claude-code)** | ✅ Supported | Reads `~/.claude/projects/` session files |
+| **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | Reads `.specstory/history/` markdown files |
+| **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | — |
+| **[GitHub Copilot](https://github.com/features/copilot)** | 📋 Planned | — |
+| **[Codex CLI](https://openai.com/codex)** | 📋 Planned | — |
+| **[Gemini CLI](https://cloud.google.com/gemini)** | 📋 Planned | — |
 
-```bash
-# Extract conversations from all available sources
-motif extract all
+> Using a tool we don't support yet? [Open an issue](https://github.com/Bulugulu/motif-cli/issues) — or contribute an extractor.
 
-# See what was extracted
-motif list
+## 📊 Agentic Coding Assessment
 
-# Prepare data for analysis (your agent reads the output)
-motif analyze --prepare
+How proficient are you really at coding with AI? What's your personality?
 
-# After your agent produces analysis JSON, generate config files
-motif rules analysis-output.json
+![Agent Concurrency](vibe-report-concurrency.png)
 
-# Generate a summary report
-motif report analysis-output.json
+![Your Vibe, Decoded](vibe-report-personality.png)
 
-# Generate your Vibe Report (no analysis needed)
-motif vibe-report --name "Your Name"
-```
+## 📖 Commands
 
-## Commands
+<details>
+<summary>Full command reference</summary>
 
 ### `motif extract`
 
@@ -114,31 +153,31 @@ motif report analysis.json --output report.md  # Custom output path
 
 ### `motif vibe-report`
 
-Generate a shareable HTML vibe report from all extracted conversations — a "Spotify Wrapped" for vibe coding. No analysis step required; works directly from extracted data.
+Generate your Agentic Coding Assessment from all extracted conversations. No analysis step required — works directly from extracted data.
 
 ```bash
-motif vibe-report                              # Generate report to ~/.motif/reports/
+motif vibe-report                              # Generate to ~/.motif/reports/
 motif vibe-report --name "Ada Lovelace"        # Personalized header
 motif vibe-report -o my-report.html            # Custom output path
 motif vibe-report --analysis analysis.json     # Include archetype from analysis
 ```
 
-The report is a self-contained HTML file (dark theme, Chart.js visualizations) you can open in any browser or share directly.
+Self-contained HTML file (dark theme, Chart.js visualizations). Open in any browser.
 
-**Report sections:**
+**Assessment sections:**
 
 | Section | What it shows |
 |---------|--------------|
 | Hero Stats | Total messages, sessions, projects, tool calls, autonomy ratio, date range |
-| Agent Concurrency | Peak and average concurrent sessions via sweep-line algorithm, weekly time-series chart |
-| Autonomy Ratio | Agent actions per human message, tracked over time with weekly trend chart |
+| Agent Concurrency | Peak and average concurrent sessions, weekly time-series chart |
+| Autonomy Ratio | Agent actions per human message, tracked over time |
 | Project Constellation | Galaxy visualization of all projects, sized by message count |
 | Growth Scorecard | First 25% vs last 25% of sessions — specification depth, autonomy, session depth, tool density |
-| Personality | Swear/frustration detection with actual quotes, catchphrases, fun stats (novels typed, longest session, busiest day) |
+| Personality | Frustration detection with actual quotes, catchphrases, fun stats |
 
 ### `motif setup`
 
-Install the `motif-analyze` Cursor skill for seamless agent integration.
+Install the `motif-analyze` Cursor skill for agent-driven analysis.
 
 ```bash
 motif setup
@@ -146,117 +185,18 @@ motif setup
 
 ### `motif update`
 
-Check for newer versions on PyPI and upgrade with a single command.
+Check for newer versions on PyPI and upgrade.
 
 ```bash
 motif update
 ```
 
-Motif also checks for updates automatically once per day when you run any command, and prints a notice if a newer version is available.
+</details>
 
-## What It Extracts
-
-**Cursor IDE** — Reads `state.vscdb`, extracts user/assistant dialogue organized by project. Captures messages, file references, tool usage, and model info.
-
-**Claude Code** — Reads `~/.claude/projects/` session files. Same structured output with session tracking.
-
-## Example Output
-
-The following was generated from a real developer's Claude Code history (386 messages across 33 sessions). This developer builds a multiplayer game using AI as their sole engineering tool — they design features and direct the AI, but don't write code themselves.
-
-### Discovered Skills
-
-**session-startup** — triggered 8+ times
-
-> User says "refresh yourself", "we're working in [project] today", or "we shall continue"
-
-1. Read project README, STATUS, MEMORY, and recent git log
-2. Summarize: current phase, what's working, what's next
-3. Wait for user direction before acting — do not propose work
-
-**bug-fix-iteration** — triggered 30+ times
-
-> User pastes error logs, console output, or says "it's still broken"
-
-1. Read the pasted logs carefully — identify the exact error
-2. Propose a targeted fix (don't refactor unrelated code)
-3. Apply the fix
-4. Ask user to test and report back
-
-**deploy-production** — triggered 8+ times
-
-> User says "deploy", "push to production", or "ship it"
-
-1. cd to project root
-2. Deploy server to Fly.io with --local-only flag
-3. Deploy client from client/ subdirectory to Vercel
-4. Verify both deployments succeeded
-
-### Identified Rules
-
-| Rule | What it enforces | Evidence |
-|------|-----------------|----------|
-| no-regressions | Never break existing functionality when adding new features | *"you broke the camera switching again"* |
-| keep-it-simple | Solve the exact problem stated. Don't add features the user didn't ask for. | *"I just wanted to fix the button, not refactor the whole component"* |
-| step-by-step | When manual action is required, provide numbered lists with exact commands. Don't explain theory. | *"just tell me what to type"* |
-| no-log-flooding | Don't make changes that cause console log flooding. Add reconnection limits. | *"the logs are going crazy again"* |
-
-### Communication Style
-
-| Aspect | Pattern |
-|--------|---------|
-| Brevity | Terse and direct. 1-3 sentences, minimal punctuation, frequent lowercase. |
-| Feedback | Reports results factually. Pastes logs when things break. Says "it works" when things work. |
-| Corrections | Patient but persistent. Will paste logs repeatedly. Pushes back when AI goes in circles. |
-| Proactivity | High. Expects the agent to execute rather than explain options. |
-
-### Generated CLAUDE.md (excerpt)
-
-```markdown
-## Agent Behavior
-
-### Rules
-
-1. Never break existing functionality when adding new features.
-2. Solve the exact problem stated. Don't add features the user didn't ask for.
-3. Use refs for values accessed in callbacks/closures, not React state.
-4. Never paste secrets in responses or store them insecurely.
-5. When manual action is required, provide numbered lists with exact commands.
-6. Don't make changes that cause console log flooding.
-7. Follow the project's documented deployment process exactly.
-8. Provide debug/test buttons for visual features so they can be tested in isolation.
-
-## Workflow Triggers
-
-| When you're... | Load this file |
-|---|---|
-| User says 'refresh yourself' or 'we shall continue' | session-startup/SKILL.md |
-| User pastes error logs or says 'it's still broken' | bug-fix-iteration/SKILL.md |
-| User says 'deploy' or 'ship it' | deploy-production/SKILL.md |
-```
-
-Full example output (analysis JSON, generated CLAUDE.md, skill files, report): [`examples/`](examples/)
-
-## Sample Vibe Report
-
-Generated from a real Cursor history — 10,973 sessions across 72 projects over 13 months.
-
-![Vibe Report Hero](vibe-report-hero.png)
-
-![Agent Concurrency](vibe-report-concurrency.png)
-
-![Your Vibe, Decoded](vibe-report-personality.png)
-
-```bash
-motif extract all
-motif vibe-report --name "Your Name"
-# Open the HTML file in any browser
-```
-
-## Acknowledgments
+## 🙏 Acknowledgments
 
 Motif's skill quality bar and exemplar skills are adapted from [Antigravity Awesome Skills](https://github.com/sickn33/antigravity-awesome-skills) by sickn33 and contributors (MIT License). See `motif/exemplars/LICENSE` for details.
 
-## License
+## 📄 License
 
-MIT
+Apache 2.0

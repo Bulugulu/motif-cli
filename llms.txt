@@ -8,7 +8,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and tur
 
 - No API key needed — your IDE's agent does the analysis
 - No server — everything stays on your machine
-- Open source (MIT)
+- Open source (Apache 2.0)
 - Python 3.10+, installable via pip
 
 ## How It Works
