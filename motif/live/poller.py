@@ -99,7 +99,12 @@ class ClaudeCodePoller:
 
                 msg = self._parse_record(record, is_subagent)
                 if msg:
-                    # Update session metadata
+                    # Subagents share their parent's sessionId, so use the
+                    # filename as identity instead — each subagent gets its
+                    # own JSONL file (e.g. agent-aa07d56.jsonl)
+                    if is_subagent:
+                        msg.session_id = state.path.stem
+
                     if not state.session_id:
                         state.session_id = msg.session_id
                     if not state.project:
