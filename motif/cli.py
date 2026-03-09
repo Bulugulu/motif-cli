@@ -619,6 +619,53 @@ def vibe_report(output, analysis, name):
     console.print(f"Open in a browser to see your report!")
 
 
+# ── Live Dashboard ──────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--compact", is_flag=True, help="Single-line compact display mode")
+@click.option("--interval", "-i", default=2.0, type=float, help="Poll interval in seconds (default: 2)")
+@click.option("--history", is_flag=True, help="Include existing session data (default: only new activity)")
+@click.option("--summary", is_flag=True, help="Show summary of current session data and exit")
+def live(compact, interval, history, summary):
+    """Real-time AI productivity dashboard.
+
+    Shows AIPM (AI tokens per minute), concurrency, and per-agent
+    efficiency as a live-updating TUI. Like StarCraft APM, but for
+    vibe coding.
+
+    \b
+    Metrics:
+      Concurrency   Agents actively generating tokens right now
+      AIPM          Current AI output tokens/min (15s window)
+      Avg AIPM      Session average AI output tokens/min
+      /Agent        Current tokens/min per active agent
+    """
+    from motif.live.runner import run_live
+
+    if summary:
+        from motif.live.poller import ClaudeCodePoller
+        from motif.live.metrics import MetricsEngine
+        from motif.live.display import render_summary
+
+        poller = ClaudeCodePoller()
+        engine = MetricsEngine()
+        messages = poller.poll()
+        engine.ingest(messages)
+        metrics = engine.compute()
+
+        if metrics.total_tokens > 0:
+            console.print(render_summary(metrics))
+        else:
+            console.print("[dim]No AI activity found.[/dim]")
+        return
+
+    run_live(
+        compact=compact,
+        poll_interval=interval,
+        include_history=history,
+    )
+
+
 # ── Setup ───────────────────────────────────────────────────────────
 
 @cli.command()
