@@ -66,7 +66,7 @@ def run_live(
 
     # Show session summary
     final = engine.compute()
-    if final.total_tokens > 0:
+    if final.session_tokens > 0:
         console.print()
         console.print(render_summary(final))
     else:
