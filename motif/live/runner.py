@@ -1,14 +1,78 @@
 """Main loop for the live dashboard."""
 
+import json
 import time
 import signal
+from datetime import datetime, timezone
+from pathlib import Path
 
 from rich.console import Console
 from rich.live import Live
 
 from .poller import ClaudeCodePoller
-from .metrics import MetricsEngine
+from .metrics import MetricsEngine, LiveMetrics
 from .display import render_full, render_compact, render_summary
+
+
+def _get_sessions_dir() -> Path:
+    d = Path.home() / ".motif" / "sessions"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def save_session(metrics: LiveMetrics):
+    """Persist session metrics to ~/.motif/sessions/ as JSON."""
+    sessions_dir = _get_sessions_dir()
+    now = datetime.now(timezone.utc)
+    filename = f"session-{now.strftime('%Y-%m-%d-%H%M%S')}.json"
+
+    record = {
+        "timestamp": now.isoformat(),
+        "session_start": datetime.fromtimestamp(metrics.session_start, tz=timezone.utc).isoformat(),
+        "duration": metrics.session_duration_str,
+        "session_tokens": metrics.session_tokens,
+        "session_prompts": metrics.session_prompts,
+        "session_aipm": round(metrics.session_aipm, 1),
+        "peak_aipm": round(metrics.peak_aipm, 1),
+        "avg_concurrency": round(metrics.avg_concurrency, 2),
+        "peak_concurrency": metrics.peak_concurrency,
+        "leverage": round(metrics.session_tokens / metrics.session_prompts, 1) if metrics.session_prompts > 0 else 0,
+    }
+
+    path = sessions_dir / filename
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(record, f, indent=2)
+
+    # Also update records.json with personal bests
+    _update_records(metrics, sessions_dir)
+
+
+def _update_records(metrics: LiveMetrics, sessions_dir: Path):
+    """Update personal best records."""
+    records_path = sessions_dir / "records.json"
+    try:
+        with open(records_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        records = {}
+
+    changed = False
+    if metrics.peak_aipm > records.get("peak_aipm", 0):
+        records["peak_aipm"] = round(metrics.peak_aipm, 1)
+        changed = True
+    if metrics.peak_concurrency > records.get("peak_concurrency", 0):
+        records["peak_concurrency"] = metrics.peak_concurrency
+        changed = True
+    if metrics.session_prompts > 0:
+        leverage = metrics.session_tokens / metrics.session_prompts
+        if leverage > records.get("peak_leverage", 0):
+            records["peak_leverage"] = round(leverage, 1)
+            changed = True
+
+    if changed:
+        records["last_updated"] = datetime.now(timezone.utc).isoformat()
+        with open(records_path, "w", encoding="utf-8") as f:
+            json.dump(records, f, indent=2)
 
 
 def run_live(
@@ -64,10 +128,12 @@ def run_live(
     except KeyboardInterrupt:
         pass
 
-    # Show session summary
+    # Show session summary and save
     final = engine.compute()
     if final.session_tokens > 0:
         console.print()
         console.print(render_summary(final))
+        save_session(final)
+        console.print(f"[dim]Session saved to ~/.motif/sessions/[/dim]")
     else:
         console.print("\n[dim]No AI activity detected during this session.[/dim]")
