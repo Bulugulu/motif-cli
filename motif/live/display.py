@@ -43,11 +43,17 @@ def render_full(metrics: LiveMetrics) -> Panel:
     lines = []
     aipm_max = THRESHOLDS["aipm"]["purple"] * 1.5
 
-    # Concurrency
+    # Current concurrency
     conc_bar = _bar(metrics.concurrency, 5, 20)
     conc_color = _color_wrap(conc_bar, "concurrency", metrics.concurrency)
     conc_emoji = get_color_emoji("concurrency", metrics.concurrency)
     lines.append(f"  CONCURRENCY  {conc_color}  {metrics.concurrency}       {conc_emoji}")
+
+    # Average concurrency
+    avg_conc_bar = _bar(metrics.avg_concurrency, 5, 20)
+    avg_conc_color = _color_wrap(avg_conc_bar, "concurrency", metrics.avg_concurrency)
+    avg_conc_emoji = get_color_emoji("concurrency", metrics.avg_concurrency)
+    lines.append(f"  AVG CONC     {avg_conc_color}  {metrics.avg_concurrency:.1f}       {avg_conc_emoji}")
 
     # Current AIPM (15s speedometer)
     aipm_bar = _bar(metrics.aipm, aipm_max, 20)
@@ -112,7 +118,7 @@ def render_compact(metrics: LiveMetrics) -> str:
 
     return (
         f"[bright_blue bold]\u25c8 MOTIF[/bright_blue bold]  "
-        f"Conc: {metrics.concurrency} {conc_emoji}  "
+        f"Conc: {metrics.concurrency} (avg {metrics.avg_concurrency:.1f}) {conc_emoji}  "
         f"AIPM: {format_tokens(metrics.aipm)} {aipm_emoji}  "
         f"Avg: {format_tokens(metrics.session_aipm)}"
     )
@@ -126,6 +132,7 @@ def render_summary(metrics: LiveMetrics) -> Panel:
     lines.append(f"  AI Output:         {format_tokens(metrics.session_tokens)} tokens")
     lines.append(f"  Avg AIPM:          {format_tokens(metrics.session_aipm)}")
     lines.append(f"  Peak AIPM:         {format_tokens(metrics.peak_aipm)}")
+    lines.append(f"  Avg Concurrency:   {metrics.avg_concurrency:.1f}")
     lines.append(f"  Peak Concurrency:  {metrics.peak_concurrency}")
     lines.append(f"  Prompts Sent:      {metrics.session_prompts}")
 

@@ -10,7 +10,8 @@ from .poller import Message
 @dataclass
 class LiveMetrics:
     """Current snapshot of live metrics."""
-    concurrency: int = 0
+    concurrency: int = 0  # agents generating tokens right now (30s)
+    avg_concurrency: float = 0.0  # average concurrent agents over session
     aipm: float = 0.0  # Current AIPM — short rolling window (speedometer)
     session_aipm: float = 0.0  # Session AIPM — session tokens / session minutes (trip avg)
     aipm_per_agent: float = 0.0
@@ -84,6 +85,7 @@ class MetricsEngine:
         self.peak_aipm: float = 0.0
         self.peak_aipm_time: float = 0.0
         self.peak_concurrency: int = 0
+        self._concurrency_samples: list[tuple[float, int]] = []  # (time, concurrency)
         self.session_start: float = time.time()
 
     def ingest(self, messages: list[Message]):
@@ -129,6 +131,21 @@ class MetricsEngine:
             1 for t in self._session_last_ai.values()
             if now - t < self.ACTIVE_THRESHOLD
         )
+
+        # --- Avg concurrency: time-weighted average over session ---
+        self._concurrency_samples.append((now, concurrency))
+        if len(self._concurrency_samples) >= 2:
+            weighted_sum = 0.0
+            total_time = 0.0
+            for i in range(1, len(self._concurrency_samples)):
+                t_prev, c_prev = self._concurrency_samples[i - 1]
+                t_curr, _ = self._concurrency_samples[i]
+                dt = t_curr - t_prev
+                weighted_sum += c_prev * dt
+                total_time += dt
+            avg_concurrency = weighted_sum / total_time if total_time > 0 else 0
+        else:
+            avg_concurrency = float(concurrency)
 
         # --- Current AIPM: tokens in last CURRENT_WINDOW seconds, extrapolated to per-minute ---
         current_cutoff = now - self.CURRENT_WINDOW
@@ -181,6 +198,7 @@ class MetricsEngine:
 
         return LiveMetrics(
             concurrency=concurrency,
+            avg_concurrency=avg_concurrency,
             aipm=aipm,
             session_aipm=session_aipm,
             aipm_per_agent=aipm_per_agent,
