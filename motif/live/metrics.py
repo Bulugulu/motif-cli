@@ -25,11 +25,12 @@ class LiveMetrics:
     idle_capacity: bool = False
 
 
-# Color thresholds from ROADMAP
+# Color thresholds — calibrated from real single-agent Claude Code data
+# Peak single-agent minute: ~10k tok/m, p95: ~4k, median: ~100
 THRESHOLDS = {
     "concurrency": {"red": 0, "yellow": 1, "green": 2, "purple": 4},
-    "aipm": {"red": 0, "yellow": 5000, "green": 15000, "purple": 40000},
-    "aipm_per_agent": {"red": 0, "yellow": 3000, "green": 8000, "purple": 15000},
+    "aipm": {"red": 0, "yellow": 500, "green": 2000, "purple": 8000},
+    "aipm_per_agent": {"red": 0, "yellow": 500, "green": 2000, "purple": 8000},
 }
 
 
@@ -73,7 +74,8 @@ class MetricsEngine:
         self._token_events: deque[tuple[float, int, str]] = deque()  # (time, tokens, session_id)
         self._prompt_times: deque[float] = deque()
         self._session_last_ai: dict[str, float] = {}  # session_id -> last AI token time
-        self.session_tokens: int = 0  # only tokens since dashboard launch
+        self._request_tokens: dict[str, int] = {}  # request_id -> highest output_tokens seen
+        self.session_tokens: int = 0  # only tokens since dashboard launch (deduplicated)
         self.session_prompts: int = 0  # only prompts since dashboard launch
         self.peak_aipm: float = 0.0
         self.peak_aipm_time: float = 0.0
@@ -81,16 +83,30 @@ class MetricsEngine:
         self.session_start: float = time.time()
 
     def ingest(self, messages: list[Message]):
-        """Process new messages into the metrics engine."""
+        """Process new messages into the metrics engine.
+
+        Token counts are cumulative within a single API response (requestId).
+        Each JSONL line for the same request reports the running total so far.
+        We deduplicate by only counting the *increase* over the previous
+        highest value seen for that requestId.
+        """
         now = time.time()
 
         for msg in messages:
             msg_time = _parse_timestamp(msg.timestamp) if msg.timestamp else now
 
             if msg.type == "assistant" and msg.output_tokens > 0:
-                self._token_events.append((msg_time, msg.output_tokens, msg.session_id))
-                if msg_time >= self.session_start:
-                    self.session_tokens += msg.output_tokens
+                # Deduplicate cumulative token counts within same API response
+                req_id = msg.request_id
+                prev = self._request_tokens.get(req_id, 0) if req_id else 0
+                if msg.output_tokens > prev:
+                    delta = msg.output_tokens - prev
+                    if req_id:
+                        self._request_tokens[req_id] = msg.output_tokens
+                    self._token_events.append((msg_time, delta, msg.session_id))
+                    if msg_time >= self.session_start:
+                        self.session_tokens += delta
+
                 self._session_last_ai[msg.session_id] = max(
                     self._session_last_ai.get(msg.session_id, 0), msg_time
                 )

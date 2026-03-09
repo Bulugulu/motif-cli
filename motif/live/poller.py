@@ -27,6 +27,7 @@ class Message:
     input_tokens: int = 0
     content_chars: int = 0
     model: Optional[str] = None
+    request_id: str = ""  # groups chunks of the same API response
     is_subagent: bool = False
 
 
@@ -166,5 +167,6 @@ class ClaudeCodePoller:
             input_tokens=usage.get("input_tokens", 0),
             content_chars=content_chars,
             model=message_data.get("model"),
+            request_id=record.get("requestId", message_data.get("id", "")),
             is_subagent=is_subagent,
         )
