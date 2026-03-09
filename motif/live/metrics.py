@@ -25,12 +25,16 @@ class LiveMetrics:
     idle_capacity: bool = False
 
 
-# Color thresholds — calibrated from real single-agent Claude Code data
-# Peak single-agent minute: ~10k tok/m, p95: ~4k, median: ~100
+# Color thresholds — calibrated from lifetime Claude Code data (15s window rates)
+# p50: ~100, p25: ~1.5k, p10: ~4.2k, p5: ~6.5k, p1: ~15k
+#   Red:    idle or tiny responses (below p50)
+#   Yellow: some activity, between prompts (p50-p25)
+#   Green:  agent actively generating (p25-p5)
+#   Purple: peak output, heavy generation or multi-agent (above p5)
 THRESHOLDS = {
     "concurrency": {"red": 0, "yellow": 1, "green": 2, "purple": 4},
-    "aipm": {"red": 0, "yellow": 500, "green": 2000, "purple": 8000},
-    "aipm_per_agent": {"red": 0, "yellow": 500, "green": 2000, "purple": 8000},
+    "aipm": {"red": 0, "yellow": 100, "green": 1500, "purple": 6000},
+    "aipm_per_agent": {"red": 0, "yellow": 100, "green": 1500, "purple": 6000},
 }
 
 
