@@ -35,7 +35,11 @@ def _color_wrap(text: str, metric: str, value: float) -> str:
 
 
 def render_full(metrics: LiveMetrics) -> Panel:
-    """Render the full TUI dashboard panel."""
+    """Render the full TUI dashboard panel.
+
+    Always renders a fixed number of lines so Rich Live can
+    overwrite cleanly without duplication artifacts.
+    """
     lines = []
     aipm_max = THRESHOLDS["aipm"]["purple"] * 1.5
 
@@ -57,12 +61,15 @@ def render_full(metrics: LiveMetrics) -> Panel:
     avg_emoji = get_color_emoji("aipm", metrics.session_aipm)
     lines.append(f"  AVG AIPM     {avg_color}  {format_tokens(metrics.session_aipm)} tok/m {avg_emoji}")
 
-    # AIPM per agent
-    per_max = THRESHOLDS["aipm_per_agent"]["purple"] * 1.5
-    per_bar = _bar(metrics.aipm_per_agent, per_max, 20)
-    per_color = _color_wrap(per_bar, "aipm_per_agent", metrics.aipm_per_agent)
-    per_emoji = get_color_emoji("aipm_per_agent", metrics.aipm_per_agent)
-    lines.append(f"  /AGENT       {per_color}  {format_tokens(metrics.aipm_per_agent)} tok/m {per_emoji}")
+    # AIPM per agent — only meaningful with multiple agents
+    if metrics.concurrency > 1:
+        per_max = THRESHOLDS["aipm_per_agent"]["purple"] * 1.5
+        per_bar = _bar(metrics.aipm_per_agent, per_max, 20)
+        per_color = _color_wrap(per_bar, "aipm_per_agent", metrics.aipm_per_agent)
+        per_emoji = get_color_emoji("aipm_per_agent", metrics.aipm_per_agent)
+        lines.append(f"  /AGENT       {per_color}  {format_tokens(metrics.aipm_per_agent)} tok/m {per_emoji}")
+    else:
+        lines.append("")
 
     lines.append("")
 
@@ -74,21 +81,20 @@ def render_full(metrics: LiveMetrics) -> Panel:
     )
     lines.append(f"[dim]{stats_line}[/dim]")
 
+    lines.append("")
+
     # Peaks
-    if metrics.peak_aipm > 0:
-        lines.append("")
-        peak_str = f"  Peak AIPM: {format_tokens(metrics.peak_aipm)}"
-        if metrics.peak_aipm_ago:
-            peak_str += f" ({metrics.peak_aipm_ago})"
-        lines.append(peak_str)
+    peak_str = f"  Peak AIPM: {format_tokens(metrics.peak_aipm)}"
+    if metrics.peak_aipm_ago:
+        peak_str += f" ({metrics.peak_aipm_ago})"
+    lines.append(peak_str)
+    lines.append(f"  Peak Concurrency: {metrics.peak_concurrency}")
 
-    if metrics.peak_concurrency > 0:
-        lines.append(f"  Peak Concurrency: {metrics.peak_concurrency}")
-
-    # Idle capacity warning
+    # Status line — always present, content varies
     if metrics.idle_capacity and metrics.concurrency > 0:
-        lines.append("")
         lines.append("  [yellow]Idle capacity \u2014 spin up another agent[/yellow]")
+    else:
+        lines.append("")
 
     body = "\n".join(lines)
     return Panel(

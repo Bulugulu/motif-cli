@@ -46,7 +46,7 @@ def run_live(
     console.print(f"[dim]Polling every {poll_interval}s | Ctrl+C to stop[/dim]\n")
 
     try:
-        with Live(console=console, refresh_per_second=1, transient=not compact) as live:
+        with Live(console=console, refresh_per_second=1, vertical_overflow="crop") as live:
             while running:
                 new_messages = poller.poll()
                 if new_messages:
