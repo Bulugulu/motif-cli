@@ -22,8 +22,8 @@ export const RemotionRoot: React.FC = () => {
         component={MotifLiveDashboard}
         durationInFrames={LIVE_DURATION_IN_FRAMES}
         fps={30}
-        width={800}
-        height={500}
+        width={960}
+        height={540}
       />
     </>
   );

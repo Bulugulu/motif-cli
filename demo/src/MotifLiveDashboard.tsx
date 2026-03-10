@@ -23,14 +23,14 @@ const C = {
 
 export const LIVE_DURATION_IN_FRAMES = 500;
 
-const TYPING_SPEED = 1.2;
-const LINE_HEIGHT = 22;
-const BAR_CHARS = 16;
+const BAR_CHARS = 10;
 const COMMAND = "motif live";
-const COMMAND_START = 15;
-const DASH_APPEAR = 48;
+const COMMAND_START = 5;
+const DASH_APPEAR = 38;
 const SUMMARY_START = 355;
 const BRANDING_START = 435;
+const LEFT_LINE_HEIGHT = 18;
+const RIGHT_LINE_HEIGHT = 20;
 
 const CLAMP = {
   extrapolateLeft: "clamp" as const,
@@ -167,12 +167,228 @@ function computeMetrics(frame: number): MetricSnapshot {
 
 const FINAL_METRICS = computeMetrics(340);
 
-// ─── Sub-components ─────────────────────────────────────────────────
+// ─── Left pane: Claude Code session content ─────────────────────────
+
+interface TextSegment {
+  text: string;
+  color: string;
+  bold?: boolean;
+}
+
+interface ContentLine {
+  frame: number;
+  segments: TextSegment[];
+  typewriter?: boolean;
+  typewriterSpeed?: number;
+}
+
+const diff = (text: string): TextSegment[] => [
+  { text: "  ", color: C.dim },
+  { text: text, color: C.green },
+];
+
+const CLAUDE_CONTENT: ContentLine[] = [
+  { frame: 0, segments: [{ text: "◆ Claude Code", color: C.cursor, bold: true }] },
+  { frame: 3, segments: [{ text: "", color: C.dim }] },
+
+  // ── First prompt ──
+  {
+    frame: 20,
+    segments: [
+      { text: "> ", color: C.cursor, bold: true },
+      { text: "Build a React dashboard component with dark theme", color: C.text },
+    ],
+    typewriter: true,
+    typewriterSpeed: 1.5,
+  },
+
+  // ── First agent response ──
+  { frame: 88, segments: [{ text: "", color: C.dim }] },
+  {
+    frame: 90,
+    segments: [
+      { text: "I'll create a dashboard component with a dark theme.", color: C.text },
+    ],
+    typewriter: true,
+    typewriterSpeed: 3,
+  },
+  { frame: 110, segments: [{ text: "", color: C.dim }] },
+  { frame: 113, segments: [{ text: "  src/Dashboard.tsx", color: C.blue }] },
+  { frame: 116, segments: diff("+ import React from 'react';") },
+  { frame: 119, segments: diff("+ import { useTheme } from './hooks';") },
+  { frame: 122, segments: diff("+") },
+  { frame: 125, segments: diff("+ export const Dashboard: React.FC = () => {") },
+  { frame: 128, segments: diff("+   const theme = useTheme('dark');") },
+  { frame: 131, segments: diff("+   return (") },
+  { frame: 150, segments: diff("+     <div className={theme.container}>") },
+  { frame: 153, segments: diff('+       <Header title="Analytics" />') },
+  { frame: 156, segments: diff("+       <MetricsGrid data={metrics} />") },
+  { frame: 159, segments: diff("+     </div>") },
+  { frame: 162, segments: diff("+   );") },
+  { frame: 165, segments: diff("+ };") },
+
+  // ── Second prompt ──
+  { frame: 192, segments: [{ text: "", color: C.dim }] },
+  {
+    frame: 200,
+    segments: [
+      { text: "> ", color: C.cursor, bold: true },
+      { text: "Now add real-time WebSocket data and chart animations", color: C.text },
+    ],
+    typewriter: true,
+    typewriterSpeed: 2.0,
+  },
+
+  // ── Second agent response ──
+  { frame: 232, segments: [{ text: "", color: C.dim }] },
+  {
+    frame: 234,
+    segments: [
+      { text: "I'll add WebSocket integration and animated charts.", color: C.text },
+    ],
+    typewriter: true,
+    typewriterSpeed: 3,
+  },
+  { frame: 253, segments: [{ text: "", color: C.dim }] },
+  { frame: 256, segments: [{ text: "  src/Dashboard.tsx", color: C.blue }] },
+  { frame: 259, segments: diff("+ import { useWebSocket } from './ws';") },
+  { frame: 262, segments: diff("+ import { AnimatedChart } from './Chart';") },
+  { frame: 265, segments: diff("+") },
+  {
+    frame: 268,
+    segments: diff("+   const { data, connected } = useWebSocket('/api/metrics');"),
+  },
+
+  // ── New file ──
+  { frame: 285, segments: [{ text: "", color: C.dim }] },
+  {
+    frame: 288,
+    segments: [
+      { text: "  src/Chart.tsx ", color: C.blue },
+      { text: "(new file)", color: C.dim },
+    ],
+  },
+  { frame: 291, segments: diff("+ import { motion } from 'framer-motion';") },
+  { frame: 294, segments: diff("+") },
+  { frame: 297, segments: diff("+ export const AnimatedChart = ({ data }) => {") },
+  { frame: 300, segments: diff("+   return (") },
+  { frame: 303, segments: diff('+     <motion.svg viewBox="0 0 400 200">') },
+
+  // ── Completion ──
+  { frame: 330, segments: [{ text: "", color: C.dim }] },
+  {
+    frame: 335,
+    segments: [
+      { text: "  ✓ ", color: C.brightGreen },
+      { text: "Created src/Dashboard.tsx", color: C.brightGreen },
+    ],
+  },
+  {
+    frame: 340,
+    segments: [
+      { text: "  ✓ ", color: C.brightGreen },
+      { text: "Created src/Chart.tsx", color: C.brightGreen },
+    ],
+  },
+  {
+    frame: 345,
+    segments: [
+      { text: "  ✓ ", color: C.brightGreen },
+      { text: "Updated src/App.tsx", color: C.brightGreen },
+    ],
+  },
+];
+
+function getVisibleSegments(
+  line: ContentLine,
+  frame: number,
+): TextSegment[] {
+  if (!line.typewriter || !line.typewriterSpeed) return line.segments;
+
+  const elapsed = frame - line.frame;
+  const visibleChars = Math.floor(elapsed * line.typewriterSpeed);
+  let remaining = visibleChars;
+  const result: TextSegment[] = [];
+  for (const seg of line.segments) {
+    if (remaining <= 0) break;
+    const chars = Math.min(remaining, seg.text.length);
+    result.push({ ...seg, text: seg.text.slice(0, chars) });
+    remaining -= chars;
+  }
+  return result;
+}
+
+function isLineStillTyping(line: ContentLine, frame: number): boolean {
+  if (!line.typewriter || !line.typewriterSpeed) return false;
+  const totalChars = line.segments.reduce((s, seg) => s + seg.text.length, 0);
+  const elapsed = frame - line.frame;
+  return Math.floor(elapsed * line.typewriterSpeed) < totalChars;
+}
+
+// ─── Left pane component ────────────────────────────────────────────
+
+const ClaudeCodePane: React.FC<{ frame: number; height: number }> = ({
+  frame,
+  height,
+}) => {
+  const cursorBlink = Math.floor(frame / 16) % 2 === 0;
+  const visibleLines = CLAUDE_CONTENT.filter((l) => frame >= l.frame);
+  const contentHeight = visibleLines.length * LEFT_LINE_HEIGHT;
+  const effectiveHeight = height - 20;
+  const scrollOffset = Math.max(0, contentHeight - effectiveHeight);
+
+  const lastLine =
+    visibleLines.length > 0 ? visibleLines[visibleLines.length - 1] : null;
+  const showCursor = lastLine ? isLineStillTyping(lastLine, frame) : false;
+
+  return (
+    <div
+      style={{
+        height,
+        overflow: "hidden",
+        padding: "10px 14px",
+        fontSize: LEFT_LINE_HEIGHT === 18 ? 13 : 14,
+        lineHeight: `${LEFT_LINE_HEIGHT}px`,
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ transform: `translateY(-${scrollOffset}px)` }}>
+        {visibleLines.map((line, i) => {
+          const segs = getVisibleSegments(line, frame);
+          const isLast = i === visibleLines.length - 1;
+          return (
+            <div
+              key={i}
+              style={{ height: LEFT_LINE_HEIGHT, whiteSpace: "pre" }}
+            >
+              {segs.map((seg, j) => (
+                <span
+                  key={j}
+                  style={{
+                    color: seg.color,
+                    fontWeight: seg.bold ? 700 : 400,
+                  }}
+                >
+                  {seg.text}
+                </span>
+              ))}
+              {isLast && showCursor && cursorBlink && (
+                <span style={{ color: C.cursor }}>█</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Window chrome ──────────────────────────────────────────────────
 
 const WindowChrome: React.FC = () => (
   <div
     style={{
-      height: 40,
+      height: 36,
       backgroundColor: C.chrome,
       display: "flex",
       alignItems: "center",
@@ -201,10 +417,12 @@ const WindowChrome: React.FC = () => (
         letterSpacing: 0.3,
       }}
     >
-      Terminal — motif live
+      Terminal
     </span>
   </div>
 );
+
+// ─── Right pane sub-components ──────────────────────────────────────
 
 const MetricRow: React.FC<{
   label: string;
@@ -220,13 +438,18 @@ const MetricRow: React.FC<{
       : 0;
 
   return (
-    <div style={{ height: LINE_HEIGHT, whiteSpace: "pre", fontSize: 14 }}>
+    <div
+      style={{ height: RIGHT_LINE_HEIGHT, whiteSpace: "pre", fontSize: 12 }}
+    >
       <span style={{ color: C.text }}>{"  "}</span>
-      <span style={{ color: C.text }}>{label.padEnd(13)}</span>
+      <span style={{ color: C.text }}>{label.padEnd(12)}</span>
       <span style={{ color }}>{"█".repeat(filled)}</span>
       <span style={{ color: C.border }}>{"░".repeat(BAR_CHARS - filled)}</span>
-      <span style={{ color: C.text }}>{"  "}{displayText.padEnd(14)}</span>
-      <span style={{ color, fontSize: 12 }}>●</span>
+      <span style={{ color: C.text }}>
+        {"  "}
+        {displayText.padEnd(12)}
+      </span>
+      <span style={{ color, fontSize: 10 }}>●</span>
     </div>
   );
 };
@@ -252,7 +475,7 @@ const DashboardPanel: React.FC<{
       style={{
         border: `1.5px solid ${C.panelBlue}`,
         borderRadius: 8,
-        padding: "14px 4px 10px",
+        padding: "12px 4px 8px",
         position: "relative",
         marginTop: 10,
         boxShadow:
@@ -262,13 +485,13 @@ const DashboardPanel: React.FC<{
       <div
         style={{
           position: "absolute",
-          top: -11,
+          top: -10,
           left: "50%",
           transform: "translateX(-50%)",
           backgroundColor: C.termBg,
-          padding: "0 14px",
+          padding: "0 12px",
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 700,
           color: C.text,
           letterSpacing: 1.5,
@@ -314,48 +537,48 @@ const DashboardPanel: React.FC<{
           metricKey="aipm_per_agent"
         />
       ) : (
-        <div style={{ height: LINE_HEIGHT }} />
+        <div style={{ height: RIGHT_LINE_HEIGHT }} />
       )}
 
-      <div style={{ height: 6 }} />
+      <div style={{ height: 4 }} />
 
       <div
         style={{
-          height: LINE_HEIGHT,
+          height: RIGHT_LINE_HEIGHT,
           whiteSpace: "pre",
           color: C.dim,
-          fontSize: 12,
-          paddingLeft: 14,
+          fontSize: 11,
+          paddingLeft: 12,
         }}
       >
-        {`Session: ${Math.round(m.sessionMinutes)}m  │  Total: ${formatTokens(m.sessionTokens)} tokens  │  Prompts: ${m.prompts}`}
+        {`${Math.round(m.sessionMinutes)}m │ ${formatTokens(m.sessionTokens)} tokens │ ${m.prompts} prompts`}
       </div>
 
-      <div style={{ height: 6 }} />
+      <div style={{ height: 4 }} />
 
       <div
         style={{
           whiteSpace: "pre",
           color: C.dim,
-          fontSize: 12,
-          paddingLeft: 14,
-          lineHeight: "20px",
+          fontSize: 11,
+          paddingLeft: 12,
+          lineHeight: "18px",
         }}
       >
         <div>
           {`Peak AIPM: ${formatTokens(m.peakAipm)}${peakAgo ? ` ${peakAgo}` : ""}`}
         </div>
-        <div>{`Peak Concurrency: ${m.peakConcurrency}`}</div>
+        <div>{`Peak Conc: ${m.peakConcurrency}`}</div>
       </div>
 
       {m.concurrency === 0 && m.aipm === 0 && frame < 340 && (
         <div
           style={{
-            height: LINE_HEIGHT,
+            height: RIGHT_LINE_HEIGHT,
             whiteSpace: "pre",
             color: C.dim,
-            fontSize: 12,
-            paddingLeft: 14,
+            fontSize: 11,
+            paddingLeft: 12,
             opacity: 0.6,
             fontStyle: "italic",
             marginTop: 4,
@@ -378,9 +601,9 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
     ["AI Output:", `${formatTokens(m.sessionTokens)} tokens`],
     ["Avg AIPM:", formatTokens(m.sessionAipm)],
     ["Peak AIPM:", formatTokens(m.peakAipm)],
-    ["Avg Concurrency:", m.avgConcurrency.toFixed(1)],
-    ["Peak Concurrency:", String(m.peakConcurrency)],
-    ["Prompts Sent:", String(m.prompts)],
+    ["Avg Conc:", m.avgConcurrency.toFixed(1)],
+    ["Peak Conc:", String(m.peakConcurrency)],
+    ["Prompts:", String(m.prompts)],
     ["Leverage:", `${formatTokens(leverage)} tok/prompt`],
   ];
 
@@ -389,7 +612,7 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
       style={{
         border: `1.5px solid ${C.panelBlue}`,
         borderRadius: 8,
-        padding: "14px 16px 10px",
+        padding: "12px 14px 8px",
         position: "relative",
         marginTop: 10,
       }}
@@ -397,13 +620,13 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
       <div
         style={{
           position: "absolute",
-          top: -11,
+          top: -10,
           left: "50%",
           transform: "translateX(-50%)",
           backgroundColor: C.termBg,
-          padding: "0 14px",
+          padding: "0 12px",
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 700,
           color: C.brightGreen,
           letterSpacing: 1.5,
@@ -416,9 +639,9 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
         <div
           key={label}
           style={{
-            height: LINE_HEIGHT,
+            height: RIGHT_LINE_HEIGHT,
             whiteSpace: "pre",
-            fontSize: 13,
+            fontSize: 12,
             opacity: interpolate(
               frame,
               [revealBase + i * 3, revealBase + i * 3 + 5],
@@ -427,7 +650,10 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
             ),
           }}
         >
-          <span style={{ color: C.dim }}>{"  "}{label.padEnd(20)}</span>
+          <span style={{ color: C.dim }}>
+            {"  "}
+            {label.padEnd(14)}
+          </span>
           <span style={{ color: C.text }}>{value}</span>
         </div>
       ))}
@@ -435,21 +661,20 @@ const SummaryPanel: React.FC<{ frame: number }> = ({ frame }) => {
   );
 };
 
-// ─── Main component ─────────────────────────────────────────────────
+// ─── Right pane wrapper ─────────────────────────────────────────────
 
-export const MotifLiveDashboard: React.FC = () => {
-  const frame = useCurrentFrame();
+const RightPane: React.FC<{ frame: number }> = ({ frame }) => {
   const cursorVisible = Math.floor(frame / 16) % 2 === 0;
 
   const cmdElapsed = Math.max(0, frame - COMMAND_START);
   const cmdCharsShown = Math.min(
-    Math.floor(cmdElapsed * TYPING_SPEED),
+    Math.floor(cmdElapsed * 1.2),
     COMMAND.length,
   );
   const cmdDone = cmdCharsShown >= COMMAND.length;
   const showMonitoring =
     cmdDone &&
-    frame >= COMMAND_START + Math.ceil(COMMAND.length / TYPING_SPEED) + 10;
+    frame >= COMMAND_START + Math.ceil(COMMAND.length / 1.2) + 10;
 
   const dashboardOpacity = interpolate(
     frame,
@@ -465,6 +690,78 @@ export const MotifLiveDashboard: React.FC = () => {
   );
 
   const currentMetrics = computeMetrics(frame);
+
+  return (
+    <div
+      style={{
+        padding: "10px 12px",
+        fontSize: 12,
+        lineHeight: `${RIGHT_LINE_HEIGHT}px`,
+        fontFamily: FONT,
+      }}
+    >
+      <div
+        style={{
+          height: RIGHT_LINE_HEIGHT,
+          whiteSpace: "pre",
+          display: "flex",
+        }}
+      >
+        <span style={{ color: C.green, fontWeight: 700 }}>$ </span>
+        <span style={{ color: C.text }}>
+          {COMMAND.slice(0, cmdCharsShown)}
+        </span>
+        {!cmdDone && cursorVisible && (
+          <span style={{ color: C.cursor }}>█</span>
+        )}
+      </div>
+
+      {showMonitoring && (
+        <div
+          style={{
+            height: RIGHT_LINE_HEIGHT,
+            whiteSpace: "pre",
+            color: C.dim,
+            fontSize: 11,
+          }}
+        >
+          Monitoring ~/.motif/ for AI activity...
+        </div>
+      )}
+
+      <div style={{ position: "relative" }}>
+        {dashboardOpacity > 0 && (
+          <div style={{ opacity: dashboardOpacity }}>
+            <DashboardPanel metrics={currentMetrics} frame={frame} />
+          </div>
+        )}
+        {summaryOpacity > 0 && (
+          <div
+            style={{
+              opacity: summaryOpacity,
+              position: dashboardOpacity > 0 ? "absolute" : "relative",
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <SummaryPanel frame={frame} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Main component ─────────────────────────────────────────────────
+
+const WINDOW_WIDTH = 920;
+const WINDOW_HEIGHT = 490;
+const CHROME_HEIGHT = 36;
+const BODY_HEIGHT = WINDOW_HEIGHT - CHROME_HEIGHT;
+
+export const MotifLiveDashboard: React.FC = () => {
+  const frame = useCurrentFrame();
   const fadeIn = interpolate(frame, [0, 12], [0, 1], CLAMP);
 
   return (
@@ -480,8 +777,8 @@ export const MotifLiveDashboard: React.FC = () => {
     >
       <div
         style={{
-          width: 720,
-          height: 430,
+          width: WINDOW_WIDTH,
+          height: WINDOW_HEIGHT,
           borderRadius: 12,
           overflow: "hidden",
           border: `1px solid ${C.border}`,
@@ -496,60 +793,21 @@ export const MotifLiveDashboard: React.FC = () => {
         <div
           style={{
             flex: 1,
+            display: "flex",
             backgroundColor: C.termBg,
-            padding: "14px 20px",
-            fontSize: 14,
-            lineHeight: `${LINE_HEIGHT}px`,
-            overflow: "hidden",
           }}
         >
           <div
             style={{
-              height: LINE_HEIGHT,
-              whiteSpace: "pre",
-              display: "flex",
+              width: "60%",
+              borderRight: `1px solid ${C.border}`,
+              overflow: "hidden",
             }}
           >
-            <span style={{ color: C.green, fontWeight: 700 }}>$ </span>
-            <span style={{ color: C.text }}>
-              {COMMAND.slice(0, cmdCharsShown)}
-            </span>
-            {!cmdDone && cursorVisible && (
-              <span style={{ color: C.cursor }}>█</span>
-            )}
+            <ClaudeCodePane frame={frame} height={BODY_HEIGHT} />
           </div>
-
-          {showMonitoring && (
-            <div
-              style={{
-                height: LINE_HEIGHT,
-                whiteSpace: "pre",
-                color: C.dim,
-              }}
-            >
-              Monitoring ~/.motif/ for AI activity...
-            </div>
-          )}
-
-          <div style={{ position: "relative" }}>
-            {dashboardOpacity > 0 && (
-              <div style={{ opacity: dashboardOpacity }}>
-                <DashboardPanel metrics={currentMetrics} frame={frame} />
-              </div>
-            )}
-            {summaryOpacity > 0 && (
-              <div
-                style={{
-                  opacity: summaryOpacity,
-                  position: dashboardOpacity > 0 ? "absolute" : "relative",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                }}
-              >
-                <SummaryPanel frame={frame} />
-              </div>
-            )}
+          <div style={{ flex: 1, overflow: "hidden" }}>
+            <RightPane frame={frame} />
           </div>
         </div>
       </div>

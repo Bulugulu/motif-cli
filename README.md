@@ -6,8 +6,6 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-![Motif Demo](demo.gif)
-
 ## ⚡ Live Dashboard — `motif live`
 
 Track your AI output in real-time. Like StarCraft APM, but for vibe coding.
@@ -96,15 +94,15 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 
 ## 🛠️ Supported Tools
 
-| Tool | Status | How It Extracts |
-|------|--------|----------------|
-| **[Cursor IDE](https://cursor.com)** | ✅ Supported | Reads `state.vscdb` — messages, file refs, tool usage, model info |
-| **[Claude Code](https://claude.ai/claude-code)** | ✅ Supported | Reads `~/.claude/projects/` session files |
-| **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | Reads `.specstory/history/` markdown files |
-| **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | — |
-| **[GitHub Copilot](https://github.com/features/copilot)** | 📋 Planned | — |
-| **[Codex CLI](https://openai.com/codex)** | 📋 Planned | — |
-| **[Gemini CLI](https://cloud.google.com/gemini)** | 📋 Planned | — |
+| Tool | Extract | Vibe Report | Live Dashboard |
+|------|---------|-------------|----------------|
+| **[Claude Code](https://claude.ai/claude-code)** | ✅ | ✅ | ✅ |
+| **[Cursor IDE](https://cursor.com)** | ✅ | ✅ | 🔜 Coming Soon |
+| **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | 🔜 | — |
+| **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | 📋 | 📋 |
+| **[GitHub Copilot](https://github.com/features/copilot)** | 📋 Planned | 📋 | 📋 |
+| **[Codex CLI](https://openai.com/codex)** | 📋 Planned | 📋 | 📋 |
+| **[Gemini CLI](https://cloud.google.com/gemini)** | 📋 Planned | 📋 | 📋 |
 
 > Using a tool we don't support yet? [Open an issue](https://github.com/Bulugulu/motif-cli/issues) — or contribute an extractor.
 
