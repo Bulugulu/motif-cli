@@ -5,8 +5,7 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "build": "remotion render src/index.ts MotifDemo out/demo.gif --codec=gif --every-nth-frame=2",
-    "build:mp4": "remotion render src/index.ts MotifDemo out/demo.mp4",
-    "build:live": "remotion render src/index.ts MotifLiveDashboard out/live-dashboard.gif --codec=gif --every-nth-frame=2"
+    "build:mp4": "remotion render src/index.ts MotifDemo out/demo.mp4"
   },
   "dependencies": {
     "@remotion/cli": "4.0.399",

@@ -1,0 +1,41 @@
+# Motif
+
+> How good of a vibe coder are you? Motif generates your personal assessment.
+
+Motif is a CLI tool that reads your Cursor and Claude Code conversations and turns them into a shareable report — how many sessions you run in parallel, how much you've grown, what your AI personality looks like. It also discovers recurring workflows and generates personalized CLAUDE.md / .cursorrules / skills files tuned to how you actually work.
+
+## Key Properties
+
+- No API key needed — your IDE's agent does the analysis
+- No server — everything stays on your machine
+- Open source (Apache 2.0)
+- Python 3.10+, installable via pip
+
+## How It Works
+
+1. `motif extract` gathers conversations from Cursor IDE (state.vscdb) and/or Claude Code (~/.claude/projects/)
+2. `motif analyze --prepare` runs a data pipeline (truncation, relevance filtering, token budgeting) and produces a structured payload with embedded analysis instructions
+3. The user's IDE agent reads the payload and performs pattern analysis — discovering skills, rules, communication style, and improvement areas
+4. `motif rules` generates CLAUDE.md, .cursorrules, and skill files from the analysis output, routed to project-level or user-level directories based on scope
+
+## Commands
+
+- `motif extract cursor|claude|all` — Extract conversations
+- `motif list` — Show extracted projects with message counts
+- `motif analyze --prepare` — Prepare data for agent-driven analysis
+- `motif rules <analysis.json>` — Generate config files from analysis
+- `motif report <analysis.json>` — Generate summary report
+- `motif vibe-report` — Generate a shareable HTML vibe report ("Spotify Wrapped" for vibe coding) from extracted conversations. Self-contained HTML with dark theme, Chart.js charts. Sections: hero stats, agent concurrency (sweep-line algorithm), autonomy ratio timeline, project constellation, growth scorecard, personality/catchphrases. Flags: `--name`, `--output`, `--analysis`
+- `motif setup` — Install Cursor skill for zero-friction agent integration
+- `motif update` — Check for newer versions and upgrade
+
+## Install
+
+```
+pip install motif-cli
+```
+
+## Links
+
+- PyPI: https://pypi.org/project/motif-cli/
+- GitHub: https://github.com/Bulugulu/motif-cli

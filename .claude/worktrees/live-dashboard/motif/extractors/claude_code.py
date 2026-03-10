@@ -128,39 +128,6 @@ def extract_tool_calls_summary(content) -> list[str]:
     return tools
 
 
-def extract_output_chars(content) -> int:
-    """Count agent-authored output characters (response text + tool call args).
-
-    Excludes thinking blocks and tool_result blocks (environment input).
-    """
-    total = 0
-
-    if isinstance(content, str):
-        return len(content)
-    if not isinstance(content, list):
-        return 0
-
-    for block in content:
-        if isinstance(block, str):
-            total += len(block)
-            continue
-        if not isinstance(block, dict):
-            continue
-
-        block_type = block.get("type", "")
-
-        if block_type in ("thinking", "tool_result"):
-            continue
-        if block_type == "text":
-            total += len(block.get("text", ""))
-        elif block_type == "tool_use":
-            input_data = block.get("input", {})
-            if isinstance(input_data, dict):
-                total += sum(len(str(v)) for v in input_data.values())
-
-    return total
-
-
 def parse_session_file(file_path: Path) -> list[dict]:
     """Parse a single session JSONL file."""
     messages = []
@@ -207,7 +174,6 @@ def parse_session_file(file_path: Path) -> list[dict]:
 
                 file_refs = extract_file_references(content)
                 tool_calls = extract_tool_calls_summary(content)
-                output_chars = extract_output_chars(content)
 
                 messages.append({
                     "role": "assistant",
@@ -218,7 +184,6 @@ def parse_session_file(file_path: Path) -> list[dict]:
                     "session_id": data.get("sessionId"),
                     "files_referenced": file_refs,
                     "tool_calls": tool_calls,
-                    "output_chars": output_chars,
                 })
 
     return messages
