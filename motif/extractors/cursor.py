@@ -253,6 +253,12 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
                 if isinstance(tfd, dict) and tfd.get("name"):
                     tool_calls.append(tfd["name"])
 
+                output_chars = len(text) if text else 0
+                if isinstance(tfd, dict):
+                    args = tfd.get("args", {})
+                    if isinstance(args, dict):
+                        output_chars += sum(len(str(v)) for v in args.values())
+
                 if not text or not text.strip():
                     # Some assistant bubbles are pure tool calls with no text
                     if not tool_calls:
@@ -267,6 +273,7 @@ def _extract_from_composer_data(conn: sqlite3.Connection) -> list[dict]:
                     "timestamp": timestamp,
                     "files_referenced": bubble_files,
                     "tool_calls": tool_calls,
+                    "output_chars": output_chars,
                     "session_id": f"composer:{conv_id}",
                     "conversation_id": conv_id,
                     "session_start": session_start,
@@ -474,23 +481,25 @@ def _extract_user_query(content) -> Optional[str]:
     return None
 
 
-def _extract_assistant_text(content) -> tuple[Optional[str], Optional[str], list[str], list[str]]:
-    """Extract text, model, file refs, and tool calls from assistant content."""
+def _extract_assistant_text(content) -> tuple[Optional[str], Optional[str], list[str], list[str], int]:
+    """Extract text, model, file refs, tool calls, and output chars from assistant content."""
     texts = []
     model = None
 
     if isinstance(content, str):
-        return content.strip() if content.strip() else None, None, [], []
+        return content.strip() if content.strip() else None, None, [], [], len(content)
     if not isinstance(content, list):
-        return None, None, [], []
+        return None, None, [], [], 0
 
     file_refs = []
     tool_calls = []
+    output_chars = 0
 
     for block in content:
         if isinstance(block, str):
             if block.strip():
                 texts.append(block.strip())
+                output_chars += len(block)
             continue
         if not isinstance(block, dict):
             continue
@@ -509,6 +518,7 @@ def _extract_assistant_text(content) -> tuple[Optional[str], Optional[str], list
                 for key in ("path", "file", "filePath", "target_file"):
                     if key in args:
                         file_refs.append(args[key])
+                output_chars += sum(len(str(v)) for v in args.values())
             continue
         if block_type == "tool-result":
             continue
@@ -516,9 +526,10 @@ def _extract_assistant_text(content) -> tuple[Optional[str], Optional[str], list
             text = block.get("text", "").strip()
             if text:
                 texts.append(text)
+                output_chars += len(text)
 
     combined = "\n\n".join(texts) if texts else None
-    return combined, model, file_refs, tool_calls
+    return combined, model, file_refs, tool_calls, output_chars
 
 
 def _extract_from_agent_kv(conn: sqlite3.Connection) -> list[dict]:
@@ -579,7 +590,7 @@ def _extract_from_agent_kv(conn: sqlite3.Connection) -> list[dict]:
             })
 
         elif role == "assistant":
-            text, model, file_refs, tool_calls = _extract_assistant_text(content)
+            text, model, file_refs, tool_calls, output_chars = _extract_assistant_text(content)
             if not text:
                 continue
 
@@ -598,6 +609,7 @@ def _extract_from_agent_kv(conn: sqlite3.Connection) -> list[dict]:
                 "timestamp": None,
                 "files_referenced": file_refs,
                 "tool_calls": tool_calls,
+                "output_chars": output_chars,
                 "session_id": f"agentKv:{key}",
                 "conversation_id": None,
             })
@@ -659,6 +671,7 @@ def extract_conversations_from_db(db_path: str) -> list[dict]:
             "timestamp": m.get("timestamp"),
             "files_referenced": m.get("files_referenced", []),
             "tool_calls": m.get("tool_calls", []),
+            "output_chars": m.get("output_chars", 0),
             "session_id": m.get("session_id"),
         }
         if m.get("session_start"):

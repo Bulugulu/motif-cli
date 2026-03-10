@@ -65,6 +65,7 @@ def _safe_metrics(metrics: dict) -> dict:
     hero = metrics.get("hero") or {}
     concurrency = metrics.get("concurrency") or {}
     autonomy_timeline = metrics.get("autonomy_timeline") or {}
+    output_density_timeline = metrics.get("output_density_timeline") or {}
     prompt_depth_timeline = metrics.get("prompt_depth_timeline") or {}
     model_evolution = metrics.get("model_evolution") or {}
     growth_scorecard = metrics.get("growth_scorecard") or {}
@@ -80,6 +81,8 @@ def _safe_metrics(metrics: dict) -> dict:
             "total_sessions": hero.get("total_sessions", 0),
             "total_projects": hero.get("total_projects", 0),
             "autonomy_ratio": hero.get("autonomy_ratio", 0.0),
+            "output_density": hero.get("output_density", 0),
+            "total_output_chars": hero.get("total_output_chars", 0),
             "date_range_start": hero.get("date_range_start", ""),
             "date_range_end": hero.get("date_range_end", ""),
         },
@@ -92,6 +95,7 @@ def _safe_metrics(metrics: dict) -> dict:
             "distribution": concurrency.get("distribution") or {},
         },
         "autonomy_timeline": autonomy_timeline,
+        "output_density_timeline": output_density_timeline,
         "prompt_depth_timeline": prompt_depth_timeline,
         "model_evolution": model_evolution,
         "growth_scorecard": growth_scorecard,
@@ -134,6 +138,7 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
 
     date_range = _format_date_range(hero["date_range_start"], hero["date_range_end"])
     autonomy_str = f"{hero['autonomy_ratio']:.1f}x" if hero["autonomy_ratio"] else "0x"
+    output_density_str = f"{hero['output_density']:,}" if hero["output_density"] else "0"
     peak_str = f"{concurrency['peak_concurrent']} session{'s' if concurrency['peak_concurrent'] != 1 else ''}"
 
     # Open Graph description
@@ -321,6 +326,10 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
           <div class="value">{peak_str}</div>
           <div class="label">Peak Concurrency</div>
         </div>
+        <div class="stat-box">
+          <div class="value">{output_density_str}</div>
+          <div class="label">Output Density</div>
+        </div>
       </div>
 '''
 
@@ -351,6 +360,14 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
       <p class="subtitle">Agent actions per human message. Higher means more effective delegation.</p>
       <div class="chart-wrap"><canvas id="chart-autonomy"></canvas></div>
       <div id="callout-autonomy" class="callout"></div>
+    </section>
+
+    <!-- Output Density -->
+    <section class="card">
+      <h2>Output Density</h2>
+      <p class="subtitle">Agent-authored characters per human message. Higher means more substantial work per prompt.</p>
+      <div class="chart-wrap"><canvas id="chart-output-density"></canvas></div>
+      <div id="callout-output-density" class="callout"></div>
     </section>
 
     <!-- 4. Project Constellation -->
@@ -497,6 +514,37 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
           aGrowth > 0 ? `From ~${aFirst.toFixed(1)}x to ~${aLast.toFixed(1)}x autonomy (${aGrowth}% growth)` : "";
       }
 
+      // Output Density chart
+      const od = METRICS.output_density_timeline || {};
+      const odWeeks = Object.keys(od).sort();
+      const odLabels = odWeeks.map(weekToLabel);
+      const odValues = odWeeks.map(w => od[w]);
+      if (odWeeks.length > 0) {
+        new Chart(document.getElementById("chart-output-density"), {
+          type: "line",
+          data: {
+            labels: odLabels,
+            datasets: [{
+              label: "Output density (chars/prompt)",
+              data: odValues,
+              borderColor: "#d29922",
+              backgroundColor: "rgba(210, 153, 34, 0.2)",
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            ...chartDefaults(),
+            plugins: { legend: { display: false } }
+          }
+        });
+        const odFirst = odValues.slice(0, 3).reduce((a,b)=>a+b,0) / Math.min(3, odValues.length);
+        const odLast = odValues.slice(-3).reduce((a,b)=>a+b,0) / Math.min(3, odValues.length);
+        const odGrowth = odFirst > 0 ? ((odLast - odFirst) / odFirst * 100).toFixed(0) : 0;
+        document.getElementById("callout-output-density").textContent =
+          odGrowth > 0 ? `From ~${Math.round(odFirst).toLocaleString()} to ~${Math.round(odLast).toLocaleString()} chars/prompt (${odGrowth}% growth)` : "";
+      }
+
       // Project constellation (galaxy)
       const projs = (METRICS.projects || []).slice(0, 15);
       const constellation = document.getElementById("constellation");
@@ -547,13 +595,15 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
         "avg_prompt_length": "How detailed your instructions are. Longer specs = the agent has more context to work with, producing better first-try results.",
         "autonomy_ratio": "Agent actions (responses + tool calls) per human message. Higher = you're delegating more effectively.",
         "msgs_per_session": "Total back-and-forth per session. More messages often means you're tackling bigger, more complex tasks.",
-        "tool_calls_per_session": "How many tools (file reads, edits, searches, commands) the agent uses per session. More = the agent is doing more work for you."
+        "tool_calls_per_session": "How many tools (file reads, edits, searches, commands) the agent uses per session. More = the agent is doing more work for you.",
+        "output_density": "Agent-authored characters per human message. Combines response text and code written via tool calls. Higher = more substantial work per prompt."
       };
       const growthConfig = [
         ["avg_prompt_length", "Specification Depth"],
         ["autonomy_ratio", "Autonomy Ratio"],
         ["msgs_per_session", "Session Depth"],
-        ["tool_calls_per_session", "Tool Density"]
+        ["tool_calls_per_session", "Tool Density"],
+        ["output_density", "Output Density"]
       ];
       const tbl = document.getElementById("growth-table");
       tbl.innerHTML = "<tr><th>Metric</th><th>Early</th><th>Recent</th><th>Change</th><th>Interpretation</th></tr>";
@@ -562,7 +612,7 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
         const row = g[key];
         if (!row) return;
         const pct = row.change_pct || 0;
-        const upGood = ["avg_prompt_length","autonomy_ratio","msgs_per_session","tool_calls_per_session"].includes(key);
+        const upGood = ["avg_prompt_length","autonomy_ratio","msgs_per_session","tool_calls_per_session","output_density"].includes(key);
         const improved = (pct > 0 && upGood) || (pct < 0 && !upGood);
         const cls = Math.abs(pct) < 5 ? "" : improved ? "change-up" : "change-down";
         const interp = Math.abs(pct) < 5 ? "Holding steady." : improved ? `Up ${Math.abs(pct).toFixed(0)}% — you're leveling up.` : `Down ${Math.abs(pct).toFixed(0)}% — room to grow.`;

@@ -252,6 +252,7 @@ def _growth_scorecard(
             "autonomy_ratio": {"early": 0.0, "recent": 0.0, "change_pct": 0.0},
             "msgs_per_session": {"early": 0, "recent": 0, "change_pct": 0.0},
             "tool_calls_per_session": {"early": 0, "recent": 0, "change_pct": 0.0},
+            "output_density": {"early": 0, "recent": 0, "change_pct": 0.0},
         }
 
     sorted_sessions = sorted(
@@ -269,6 +270,7 @@ def _growth_scorecard(
         user_msgs = [m for m in msgs if m.get("role") == "user"]
         assistant_msgs = [m for m in msgs if m.get("role") == "assistant"]
         tool_calls = sum(len(m.get("tool_calls") or []) for m in msgs)
+        output_chars = sum(m.get("output_chars", 0) for m in msgs)
         sess_count = len(sids)
         total_user_len = sum(len(m.get("content") or "") for m in user_msgs)
         total_files = sum(len(m.get("files_referenced") or []) for m in msgs)
@@ -278,6 +280,7 @@ def _growth_scorecard(
             "autonomy": (len(assistant_msgs) + tool_calls) / len(user_msgs) if user_msgs else 0.0,
             "msgs": len(msgs) / sess_count if sess_count else 0,
             "tool_calls": tool_calls / sess_count if sess_count else 0,
+            "output_density": output_chars / len(user_msgs) if user_msgs else 0,
         }
 
     early = session_metrics(early_sids)
@@ -313,6 +316,11 @@ def _growth_scorecard(
             "early": round(early["tool_calls"], 1),
             "recent": round(recent["tool_calls"], 1),
             "change_pct": round(pct_change(early["tool_calls"], recent["tool_calls"]), 1),
+        },
+        "output_density": {
+            "early": round(early["output_density"]),
+            "recent": round(recent["output_density"]),
+            "change_pct": round(pct_change(early["output_density"], recent["output_density"]), 1),
         },
     }
 
@@ -421,6 +429,7 @@ def compute_all_metrics(messages: list[dict]) -> dict:
     user_msgs = [m for m in messages if m.get("role") == "user"]
     assistant_msgs = [m for m in messages if m.get("role") == "assistant"]
     total_tool_calls = sum(len(m.get("tool_calls") or []) for m in messages)
+    total_output_chars = sum(m.get("output_chars", 0) for m in messages)
 
     sessions = _build_session_map(messages)
     total_sessions = len(sessions)
@@ -449,6 +458,7 @@ def compute_all_metrics(messages: list[dict]) -> dict:
     projects.sort(key=lambda x: -x["messages"])
 
     autonomy = (len(assistant_msgs) + total_tool_calls) / len(user_msgs) if user_msgs else 0.0
+    output_density = total_output_chars / len(user_msgs) if user_msgs else 0.0
 
     dates_with_ts = [_parse_ts(m.get("timestamp")) for m in messages if m.get("timestamp")]
     dates_with_ts = [d for d in dates_with_ts if d is not None]
@@ -458,6 +468,7 @@ def compute_all_metrics(messages: list[dict]) -> dict:
     concurrency = _concurrency_metrics(sessions)
 
     autonomy_by_week: dict[str, list[tuple[int, int]]] = defaultdict(lambda: [0, 0])
+    output_density_by_week: dict[str, list] = defaultdict(lambda: [0, 0])
     prompt_depth_by_week: dict[str, list[int]] = defaultdict(list)
     model_by_week: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
@@ -470,9 +481,11 @@ def compute_all_metrics(messages: list[dict]) -> dict:
         tc = len(m.get("tool_calls") or [])
         if role == "user":
             autonomy_by_week[w][0] += 1
+            output_density_by_week[w][1] += 1
             prompt_depth_by_week[w].append(len(m.get("content") or ""))
         elif role == "assistant":
             autonomy_by_week[w][1] += 1 + tc
+            output_density_by_week[w][0] += m.get("output_chars", 0)
             model = m.get("model") or "unknown"
             model_by_week[w][model] = model_by_week[w].get(model, 0) + 1
 
@@ -480,6 +493,11 @@ def compute_all_metrics(messages: list[dict]) -> dict:
     for w, (user_c, assist_c) in autonomy_by_week.items():
         if user_c > 0:
             autonomy_timeline[w] = round(assist_c / user_c, 2)
+
+    output_density_timeline = {}
+    for w, (chars, user_c) in output_density_by_week.items():
+        if user_c > 0:
+            output_density_timeline[w] = round(chars / user_c)
 
     prompt_depth_timeline = {}
     for w, lengths in prompt_depth_by_week.items():
@@ -500,11 +518,14 @@ def compute_all_metrics(messages: list[dict]) -> dict:
             "total_sessions": total_sessions,
             "total_projects": len(project_counts),
             "autonomy_ratio": round(autonomy, 2),
+            "output_density": round(output_density),
+            "total_output_chars": total_output_chars,
             "date_range_start": date_range_start,
             "date_range_end": date_range_end,
         },
         "concurrency": concurrency,
         "autonomy_timeline": autonomy_timeline,
+        "output_density_timeline": output_density_timeline,
         "prompt_depth_timeline": prompt_depth_timeline,
         "model_evolution": model_evolution,
         "growth_scorecard": growth,
@@ -523,6 +544,8 @@ def _empty_metrics() -> dict:
             "total_sessions": 0,
             "total_projects": 0,
             "autonomy_ratio": 0.0,
+            "output_density": 0,
+            "total_output_chars": 0,
             "date_range_start": "",
             "date_range_end": "",
         },
@@ -535,6 +558,7 @@ def _empty_metrics() -> dict:
             "distribution": {},
         },
         "autonomy_timeline": {},
+        "output_density_timeline": {},
         "prompt_depth_timeline": {},
         "model_evolution": {},
         "growth_scorecard": {
@@ -543,6 +567,7 @@ def _empty_metrics() -> dict:
             "autonomy_ratio": {"early": 0.0, "recent": 0.0, "change_pct": 0.0},
             "msgs_per_session": {"early": 0, "recent": 0, "change_pct": 0.0},
             "tool_calls_per_session": {"early": 0, "recent": 0, "change_pct": 0.0},
+            "output_density": {"early": 0, "recent": 0, "change_pct": 0.0},
         },
         "projects": [],
         "personality": {

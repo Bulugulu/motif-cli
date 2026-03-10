@@ -31,6 +31,9 @@ Thumbs.db
 CLAUDE.md
 .cursorrules
 
+# Claude Code worktrees
+.claude/
+
 # Tests (local development only)
 tests/
 
