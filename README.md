@@ -107,7 +107,7 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 | Tool | Extract | Vibe Report | Live Dashboard |
 |------|---------|-------------|----------------|
 | **[Claude Code](https://claude.ai/claude-code)** | ✅ | ✅ | ✅ |
-| **[Cursor IDE](https://cursor.com)** | ✅ | ✅ | 🔜 Coming Soon |
+| **[Cursor IDE](https://cursor.com)** | ✅ | ✅ | ✅ [Extension](https://open-vsx.org/extension/motif/motif) |
 | **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | 🔜 | — |
 | **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | 📋 | 📋 |
 | **[GitHub Copilot](https://github.com/features/copilot)** | 📋 Planned | 📋 | 📋 |
