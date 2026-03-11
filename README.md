@@ -22,6 +22,16 @@ motif live --compact          # Single-line mode
 motif live --summary          # Quick summary of current session
 ```
 
+## 🧩 VS Code Extension — Dashboard Inside Your IDE
+
+Want the dashboard without leaving your editor? The **Motif VS Code extension** brings real-time AIPM and concurrency tracking directly into Cursor's status bar and sidebar.
+
+- **Status bar** — color-coded AIPM indicator always visible while you code
+- **Sidebar dashboard** — full session stats without switching windows
+- **Session persistence** — personal bests tracked across sessions, same as `motif live`
+
+Install from [Open VSX](https://open-vsx.org/extension/motif/motif) (works in Cursor) or the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=motif.motif).
+
 ## 📊 Vibe Report — Your Agentic Coding Assessment
 
 How proficient are you really at coding with AI? What's your personality?

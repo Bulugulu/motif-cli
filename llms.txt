@@ -38,7 +38,13 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 pip install motif-cli
 ```
 
+## VS Code Extension
+
+The Motif VS Code extension brings the live dashboard into Cursor's status bar and sidebar. Color-coded AIPM indicator, session stats panel, and personal bests — no terminal required. Install from the VS Code Marketplace.
+
 ## Links
 
 - PyPI: https://pypi.org/project/motif-cli/
 - GitHub: https://github.com/Bulugulu/motif-cli
+- VS Code Extension (Cursor/Open VSX): https://open-vsx.org/extension/motif/motif
+- VS Code Extension (VS Code Marketplace): https://marketplace.visualstudio.com/items?itemName=motif.motif
