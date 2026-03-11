@@ -79,6 +79,7 @@ def run_live(
     compact: bool = False,
     poll_interval: float = 2.0,
     include_history: bool = False,
+    idle_timeout: int = 300,
 ):
     """Run the live dashboard loop.
 
@@ -107,28 +108,64 @@ def run_live(
     signal.signal(signal.SIGINT, handle_signal)
 
     console.print("[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 watching for AI activity...")
-    console.print(f"[dim]Polling every {poll_interval}s | Ctrl+C to stop[/dim]\n")
+    if idle_timeout > 0:
+        console.print(f"[dim]Polling every {poll_interval}s | Idle timeout: {idle_timeout}s | Ctrl+C to stop[/dim]\n")
+    else:
+        console.print(f"[dim]Polling every {poll_interval}s | Idle timeout: disabled | Ctrl+C to stop[/dim]\n")
 
     try:
-        with Live(console=console, refresh_per_second=1, vertical_overflow="crop") as live:
-            while running:
-                new_messages = poller.poll()
-                if new_messages:
-                    engine.ingest(new_messages)
+        while running:
+            idle_triggered = False
 
-                metrics = engine.compute()
+            with Live(console=console, refresh_per_second=1, vertical_overflow="crop") as live:
+                while running:
+                    new_messages = poller.poll()
+                    if new_messages:
+                        engine.ingest(new_messages)
 
-                if compact:
-                    live.update(render_compact(metrics))
-                else:
-                    live.update(render_full(metrics))
+                    metrics = engine.compute()
 
-                time.sleep(poll_interval)
+                    if compact:
+                        live.update(render_compact(metrics))
+                    else:
+                        live.update(render_full(metrics))
+
+                    # Check for idle timeout
+                    if (idle_timeout > 0
+                            and engine.last_activity_timestamp > 0
+                            and engine.session_tokens > 0):
+                        idle_seconds = time.time() - engine.last_activity_timestamp
+                        if idle_seconds >= idle_timeout:
+                            idle_triggered = True
+                            break
+
+                    time.sleep(poll_interval)
+
+            if not idle_triggered:
+                break
+
+            # Idle timeout — show summary and prompt
+            final = engine.compute()
+            console.print()
+            console.print(render_summary(final))
+            save_session(final)
+            console.print(f"[dim]Session saved to ~/.motif/sessions/[/dim]\n")
+
+            try:
+                answer = console.input("[bold]Start new session?[/bold] [dim]\\[Y/n][/dim] ").strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                answer = "n"
+
+            if answer in ("", "y", "yes"):
+                engine.reset()
+                console.print("\n[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 new session started, watching for AI activity...\n")
+            else:
+                running = False
 
     except KeyboardInterrupt:
         pass
 
-    # Show session summary and save
+    # Show session summary on manual exit (Ctrl+C)
     final = engine.compute()
     if final.session_tokens > 0:
         console.print()

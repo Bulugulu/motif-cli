@@ -87,6 +87,7 @@ class MetricsEngine:
         self.peak_concurrency: int = 0
         self._concurrency_samples: list[tuple[float, int]] = []  # (time, concurrency)
         self.session_start: float = time.time()
+        self.last_activity_timestamp: float = 0.0
 
     def ingest(self, messages: list[Message]):
         """Process new messages into the metrics engine.
@@ -98,6 +99,7 @@ class MetricsEngine:
         """
         now = time.time()
 
+        had_activity = False
         for msg in messages:
             msg_time = _parse_timestamp(msg.timestamp) if msg.timestamp else now
 
@@ -116,11 +118,31 @@ class MetricsEngine:
                 self._session_last_ai[msg.session_id] = max(
                     self._session_last_ai.get(msg.session_id, 0), msg_time
                 )
+                had_activity = True
 
             if msg.type == "user":
                 self._prompt_times.append(msg_time)
                 if msg_time >= self.session_start:
                     self.session_prompts += 1
+                had_activity = True
+
+        if had_activity:
+            self.last_activity_timestamp = time.time()
+
+    def reset(self):
+        """Reset all session state for a new session."""
+        self._token_events.clear()
+        self._prompt_times.clear()
+        self._session_last_ai.clear()
+        self._request_tokens.clear()
+        self.session_tokens = 0
+        self.session_prompts = 0
+        self.peak_aipm = 0.0
+        self.peak_aipm_time = 0.0
+        self.peak_concurrency = 0
+        self._concurrency_samples.clear()
+        self.session_start = time.time()
+        self.last_activity_timestamp = 0.0
 
     def compute(self) -> LiveMetrics:
         """Compute current metrics snapshot."""

@@ -626,7 +626,8 @@ def vibe_report(output, analysis, name):
 @click.option("--interval", "-i", default=2.0, type=float, help="Poll interval in seconds (default: 2)")
 @click.option("--history", is_flag=True, help="Include existing session data (default: only new activity)")
 @click.option("--summary", is_flag=True, help="Show summary of current session data and exit")
-def live(compact, interval, history, summary):
+@click.option("--idle-timeout", default=300, type=int, help="Auto-end session after N seconds of inactivity (0 to disable)")
+def live(compact, interval, history, summary, idle_timeout):
     """Real-time AI productivity dashboard.
 
     Shows AIPM (AI tokens per minute), concurrency, and per-agent
@@ -663,6 +664,7 @@ def live(compact, interval, history, summary):
         compact=compact,
         poll_interval=interval,
         include_history=history,
+        idle_timeout=idle_timeout,
     )
 
 
