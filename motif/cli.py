@@ -461,12 +461,16 @@ def status(project):
 @cli.command()
 @click.argument("analysis_file", type=click.Path(exists=True))
 @click.option("--dry-run", is_flag=True, help="Preview what would be generated without writing files")
-@click.option("--apply", is_flag=True, help="Deploy generated files to project/user directories")
+@click.option("--apply", is_flag=True, help="Deploy skill files to project/user directories")
 @click.option("--project", "-p", default=None, help="Project name for CLAUDE.md header")
 def rules(analysis_file, dry_run, apply, project):
     """Generate config files (CLAUDE.md, skills) from analysis JSON.
 
     ANALYSIS_FILE is the JSON output from your agent's analysis.
+
+    Motif never writes to your CLAUDE.md directly. The generated CLAUDE.md
+    is saved to ~/.motif/generated/ as a reference — your agent should read
+    it and merge the relevant sections into your existing CLAUDE.md.
     """
     from motif.rules.generator import load_analysis, generate_all, preview_generation, deploy_files
     from motif.config import get_motif_dir
@@ -498,13 +502,23 @@ def rules(analysis_file, dry_run, apply, project):
     for rel_path in sorted(generated):
         console.print(f"  {rel_path}")
 
+    claude_path = out_dir / "CLAUDE.md"
+    if claude_path.exists():
+        console.print(f"\n[bold]CLAUDE.md reference:[/bold] [cyan]{claude_path}[/cyan]")
+        console.print(f"[dim]Motif does not edit your CLAUDE.md. Read the reference above and merge the rules you want.[/dim]")
+
     if apply:
         deployed = deploy_files(generated, out_dir)
-        console.print(f"\n[green]Deployed {len(deployed)} files:[/green]")
-        for d in deployed:
-            console.print(f"  [cyan]{d}[/cyan]")
+        if deployed:
+            console.print(f"\n[green]Deployed {len(deployed)} skill files:[/green]")
+            for d in deployed:
+                console.print(f"  [cyan]{d}[/cyan]")
+        else:
+            console.print(f"\n[dim]No skill files to deploy.[/dim]")
     else:
-        console.print(f"\nRun [cyan]motif rules {analysis_file} --apply[/cyan] to deploy to project/user directories.")
+        skill_count = sum(1 for r in generated if r != "CLAUDE.md")
+        if skill_count:
+            console.print(f"\nRun [cyan]motif rules {analysis_file} --apply[/cyan] to deploy {skill_count} skill files.")
 
 
 def _detect_project_name(analysis: dict) -> str:

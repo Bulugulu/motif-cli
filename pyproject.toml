@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "motif-cli"
-version = "0.3.4"
-description = "Discover your coding patterns from AI conversations. Generate personalized .cursorrules, CLAUDE.md, and skills."
+version = "0.3.6"
+description = "Real-time dashboard and assessment report for your AI coding sessions. Understand your AI engineering skills and personality."
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [
     {name = "Aviv Sheriff", email = "aviv@howyougotthere.com"},
 ]
-keywords = ["cursor", "claude-code", "ai", "coding-patterns", "developer-tools", "cursorrules"]
+keywords = ["cursor", "claude-code", "ai", "vibe-coding", "developer-tools", "live-dashboard", "agentic-coding"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

@@ -8,7 +8,7 @@ what to look for when analyzing conversation data.
 
 def get_prompt_version() -> str:
     """Return the version string for this prompt."""
-    return "0.2.0"
+    return "0.3.0"
 
 
 def get_analysis_prompt() -> str:
@@ -63,17 +63,26 @@ You are analyzing AI coding assistant conversation history to discover the user'
    - When analyzing data from multiple projects (`--all` mode), patterns appearing across 3+ projects are strong `user` signals. Patterns only in one project default to `project`.
    - When analyzing a single project, use content analysis: does it reference project-specific entities?
 
+8. **Existing CLAUDE.md awareness** (IMPORTANT)
+   - If an `## Existing CLAUDE.md` section appears in this document, the user already has rules and configuration.
+   - **Do NOT suggest rules that duplicate what already exists.** If an existing rule covers the same concern, skip it or suggest a refinement instead.
+   - **Do NOT suggest skills that duplicate existing workflow triggers.** Check the existing CLAUDE.md for workflow trigger tables or skill references.
+   - For rules that would enhance or refine existing ones, mark them with `"existing_overlap": "rule name or section it overlaps with"` and explain the delta.
+   - Your output should be **additive** — only new patterns the existing config doesn't already cover, or specific refinements to what's there.
+
 ### What NOT to do
 
 - Don't impose rigid categories; let the data drive the structure
 - Don't recommend skills for one-off occurrences
 - Don't generate complete skill files — provide structured outlines with purpose, instructions (5-10 steps), best practices, and pitfalls
 - Don't recommend skills for things too varied to templatize
+- Don't suggest rules that already exist in the user's CLAUDE.md (if provided)
 
 ### Data notes
 
 - **Pasted data:** Some messages contain pasted data (profiles, email threads, JSON) below the user's instruction. Focus on the instruction, not the pasted data.
 - **Minimum data:** If fewer than 20 user messages are available, note that findings may be thin and recommend the user accumulate more conversation history.
+- **Existing CLAUDE.md:** If present in the prepared data, use it as context to avoid duplicating existing rules and to suggest targeted edits rather than a full rewrite.
 
 ### Output format
 

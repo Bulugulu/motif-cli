@@ -48,8 +48,8 @@ def normalize_project_name(name: str) -> str:
     """Normalize a project name by stripping path-derived prefixes.
 
     Handles cases like:
-      c-dev-journey-map-makers → journey-map-makers
-      c_dev_journey_map_makers → journey-map-makers
+      c-dev-journey-map-makers ΓåÆ journey-map-makers
+      c_dev_journey_map_makers ΓåÆ journey-map-makers
     """
     if not name:
         return name
@@ -444,19 +444,42 @@ def apply_token_budget(messages: list[dict], budget: int = BUDGET_DEFAULT) -> li
     return _stratified_sample(deduped, min(target_count, len(deduped)))
 
 
+def _find_existing_claude_md() -> str | None:
+    """Look for an existing CLAUDE.md in common locations relative to cwd.
+
+    Checks cwd, then one level up, then two levels up. Returns file content
+    if found, None otherwise. Truncates to 4000 chars to stay within budget.
+    """
+    from pathlib import Path
+    cwd = Path.cwd()
+    for candidate in [cwd, cwd.parent, cwd.parent.parent]:
+        claude_path = candidate / "CLAUDE.md"
+        if claude_path.is_file():
+            try:
+                content = claude_path.read_text(encoding="utf-8")
+                if len(content) > 4000:
+                    content = content[:4000] + "\n\n[...truncated at 4000 chars]"
+                return content
+            except OSError:
+                continue
+    return None
+
+
 def format_prepared_output(
     messages: list[dict],
     project: str,
     total_raw_count: int,
     pipeline_stats: dict,
+    existing_claude_md: str | None = None,
 ) -> str:
     """
     Return a markdown string with:
     1. Header: project name, date range, message counts (raw vs filtered)
-    2. Conversation turns grouped by session_id (### Session headers)
-    3. Each message: **[USER]** or **[ASSISTANT]** + content
-    4. Pipeline statistics section
-    5. Analysis prompt appended
+    2. Existing CLAUDE.md content (if found) so the analysis avoids duplicates
+    3. Conversation turns grouped by session_id (### Session headers)
+    4. Each message: **[USER]** or **[ASSISTANT]** + content
+    5. Pipeline statistics section
+    6. Analysis prompt appended
     """
     lines = []
 
@@ -474,6 +497,20 @@ def format_prepared_output(
     lines.append(f"**Raw messages (all projects):** {total_raw_count}")
     lines.append(f"**Filtered messages:** {len(messages)}")
     lines.append("")
+
+    # Existing CLAUDE.md — included so the analysis can avoid suggesting duplicates
+    if existing_claude_md:
+        lines.append("---")
+        lines.append("")
+        lines.append("## Existing CLAUDE.md")
+        lines.append("")
+        lines.append("The user already has a CLAUDE.md with the following content. **Do not suggest rules or skills that duplicate what is already here.** Only suggest additions or refinements.")
+        lines.append("")
+        lines.append("```markdown")
+        lines.append(existing_claude_md)
+        lines.append("```")
+        lines.append("")
+
     lines.append("---")
     lines.append("")
     lines.append("## Conversation")
@@ -485,7 +522,6 @@ def format_prepared_output(
         session_id = m.get("session_id")
         if session_id and session_id != current_session:
             current_session = session_id
-            # Use short session id for header (full key can be long)
             short_id = session_id.split(":")[-1][:20] if ":" in session_id else str(session_id)[:20]
             lines.append(f"### Session {short_id}")
             lines.append("")
@@ -567,6 +603,13 @@ def prepare_analysis(
         "budget_applied": budget_applied,
     }
 
-    output = format_prepared_output(final, project, total_raw, pipeline_stats)
+    existing_claude_md = _find_existing_claude_md()
+    if existing_claude_md:
+        pipeline_stats["existing_claude_md"] = True
+
+    output = format_prepared_output(
+        final, project, total_raw, pipeline_stats,
+        existing_claude_md=existing_claude_md,
+    )
 
     return output, pipeline_stats
