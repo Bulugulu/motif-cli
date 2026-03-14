@@ -40,9 +40,9 @@ const SESSION: Command[] = [
     command: "pip install motif-cli",
     output: [
       { text: "Collecting motif-cli", color: C.dim },
-      { text: "  Downloading motif_cli-0.4.0-py3-none-any.whl", color: C.dim },
+      { text: "  Downloading motif_cli-0.5.0-py3-none-any.whl", color: C.dim },
       {
-        text: "Successfully installed motif-cli-0.4.0",
+        text: "Successfully installed motif-cli-0.5.0",
         color: C.brightGreen,
       },
     ],
