@@ -222,7 +222,10 @@ See [docs/METRICS.md](docs/METRICS.md) for full metric documentation.
 
 ### `motif setup`
 
-Install the `motif-analyze` Cursor skill for agent-driven analysis.
+Install the `motif-analyze` skill for agent-driven analysis. Auto-detects your tools and installs to the right locations:
+
+- **Cursor:** `~/.cursor/skills/motif-analyze/SKILL.md` (auto-loaded by trigger phrases)
+- **Claude Code:** `~/.claude/commands/motif.md` (use `/motif` to load)
 
 ```bash
 motif setup

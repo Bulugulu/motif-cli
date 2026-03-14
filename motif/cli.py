@@ -689,7 +689,7 @@ def live(compact, interval, history, summary, idle_timeout):
 
 @cli.command()
 def setup():
-    """Install the motif-analyze Cursor skill for agent integration."""
+    """Install the motif-analyze skill for Cursor and/or Claude Code."""
     from motif.setup_cmd import run_setup
     run_setup(console)
 
@@ -722,9 +722,9 @@ def update():
         if success:
             console.print(f"\n[green]Upgraded to {result['latest']}![/green]")
             from motif.setup_cmd import run_setup
-            from motif.config import get_skill_install_path
-            if get_skill_install_path().exists():
-                console.print("Updating installed Cursor skill...")
+            from motif.config import get_skill_install_path, get_claude_command_install_path
+            if get_skill_install_path().exists() or get_claude_command_install_path().exists():
+                console.print("Updating installed skills...")
                 run_setup(console, auto=True)
         else:
             console.print("\n[red]Upgrade failed.[/red] Try manually: pip install --upgrade motif-cli")

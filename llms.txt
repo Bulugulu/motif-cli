@@ -18,7 +18,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 3. `motif vibe-report` generates a self-contained HTML assessment — agent concurrency, autonomy ratio, growth scorecard, personality/catchphrases, project constellation
 4. `motif analyze --prepare` runs a data pipeline (truncation, relevance filtering, token budgeting) and produces a structured payload with embedded analysis instructions. Includes the user's existing CLAUDE.md (if found) so the analysis avoids suggesting duplicate rules
 5. The user's IDE agent reads the payload and performs pattern analysis — discovering skills, rules, communication style, and improvement areas
-6. `motif rules` generates a reference CLAUDE.md and skill files from the analysis output. Skill files are deployed to project-level or user-level directories. CLAUDE.md is never written directly — the host agent reads the reference and proposes targeted edits to the user's existing file
+6. `motif rules` generates a reference CLAUDE.md and skill files from the analysis output. Skill files are deployed to both Cursor (`.cursor/skills/`) and Claude Code (`.claude/commands/`) directories. CLAUDE.md is never written directly — the host agent reads the reference and proposes targeted edits to the user's existing file
 
 ## Commands
 
@@ -29,7 +29,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 - `motif analyze --prepare` — Prepare data for agent-driven analysis
 - `motif rules <analysis.json>` — Generate config files from analysis. Motif never writes to the user's CLAUDE.md — it generates a reference at `~/.motif/generated/CLAUDE.md` for the host agent to read and merge. `--apply` deploys skill files only. Flags: `--dry-run`, `--apply`, `-p`
 - `motif report <analysis.json>` — Generate summary report
-- `motif setup` — Install Cursor skill for zero-friction agent integration
+- `motif setup` — Install skill for agent integration (Cursor skill + Claude Code `/motif` command)
 - `motif update` — Check for newer versions and upgrade
 
 ## Install
