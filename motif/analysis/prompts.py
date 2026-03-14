@@ -68,13 +68,13 @@ You are analyzing AI coding assistant conversation history to discover the user'
    - **Do NOT suggest rules that duplicate what already exists.** If an existing rule covers the same concern, skip it or suggest a refinement instead.
    - **Do NOT suggest skills that duplicate existing workflow triggers.** Check the existing CLAUDE.md for workflow trigger tables or skill references.
    - For rules that would enhance or refine existing ones, mark them with `"existing_overlap": "rule name or section it overlaps with"` and explain the delta.
-   - Your output should be **additive** — only new patterns the existing config doesn't already cover, or specific refinements to what's there.
+   - Your output should be **additive**   only new patterns the existing config doesn't already cover, or specific refinements to what's there.
 
 ### What NOT to do
 
 - Don't impose rigid categories; let the data drive the structure
 - Don't recommend skills for one-off occurrences
-- Don't generate complete skill files — provide structured outlines with purpose, instructions (5-10 steps), best practices, and pitfalls
+- Don't generate complete skill files   provide structured outlines with purpose, instructions (5-10 steps), best practices, and pitfalls
 - Don't recommend skills for things too varied to templatize
 - Don't suggest rules that already exist in the user's CLAUDE.md (if provided)
 
@@ -142,4 +142,70 @@ Respond with valid JSON in this structure:
   }
 }
 ```
+"""
+
+
+def get_vibe_report_prompt() -> str:
+    """Return a lightweight analysis prompt for qualitative vibe report enrichment.
+
+    Produces personality/narrative content   no skills or rules.
+    Designed for a ~20k token budget (much cheaper than full analysis).
+    """
+    return """---
+
+## Vibe Report Analysis Instructions
+
+You are analyzing AI coding conversation history to produce **qualitative insights for a shareable vibe report**. This is NOT the full skills/rules analysis   focus only on personality, narrative, and strengths.
+
+Read the conversation data above and produce a JSON with these sections:
+
+### Output format
+
+Respond with valid JSON in this structure:
+
+```json
+{
+  "archetype": {
+    "name": "string   a punchy 2-4 word title (e.g., 'The Architect', 'The Speed Demon', 'The Methodical Builder')",
+    "description": "string   1-2 sentences explaining the archetype based on evidence"
+  },
+  "superpowers": [
+    {
+      "name": "string   short label (e.g., 'Decomposition', 'Recovery', 'Parallel Thinking')",
+      "description": "string   1 sentence with evidence from conversations"
+    }
+  ],
+  "communication_style": "string   2-3 punchy sentences. How do they talk to AI? Terse or verbose? Structured or freeform? How do they give feedback?",
+  "growth_narrative": "string   3-5 sentences. How has this person evolved? Compare early sessions to recent ones. What changed in how they work with AI?",
+  "notable_moments": [
+    {
+      "quote": "string   exact or near-exact quote from the user (keep it short, punchy)",
+      "context": "string   1 sentence explaining when/why they said it"
+    }
+  ],
+  "blind_spots": [
+    {
+      "name": "string   short label",
+      "description": "string   1 sentence, framed constructively (growth opportunity, not criticism)"
+    }
+  ]
+}
+```
+
+### Guidelines
+
+- **Superpowers**: Identify 2-3. These should be genuinely impressive things, not generic compliments. Use evidence.
+- **Notable moments**: Pick 2-3 quotes that are funny, revealing, or show personality. Prefer the user's actual words.
+- **Blind spots**: Identify 1-2. Frame as growth opportunities. Be honest but constructive.
+- **Growth narrative**: If early vs late sessions show clear evolution, highlight it. If data is limited, say so briefly.
+- **Communication style**: Be specific. "Terse" is too vague   "Leads with the desired outcome in 1 sentence, adds constraints as bullet points" is better.
+- **Archetype**: Should feel earned, not forced. If the data doesn't clearly suggest one, pick the closest fit and note it in the description.
+- **Keep it real**: This is a shareable report. The user will show it to others. Be honest and specific, not flattering and generic.
+
+### What NOT to do
+
+- Don't produce skills, rules, or actionable config   that's a separate flow
+- Don't analyze pasted data (JSON blobs, email threads)   focus on the user's own words
+- Don't invent quotes   use actual phrases from the conversations, or paraphrase closely
+- Don't be generic   "good at problem solving" is useless. "Consistently breaks 3-day features into 20-minute agent sprints by writing detailed specs upfront" is useful.
 """

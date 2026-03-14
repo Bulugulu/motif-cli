@@ -117,17 +117,25 @@ def _safe_metrics(metrics: dict) -> dict:
     }
 
 
-def generate_html_report(metrics: dict, archetype: dict | None = None, user_name: str = "Vibe Coder") -> str:
+def generate_html_report(metrics: dict, analysis: dict | None = None, user_name: str = "Vibe Coder") -> str:
     """Generate a self-contained HTML report from computed metrics.
 
     Args:
         metrics: Output from metrics.compute_all_metrics()
-        archetype: Optional dict with "name" and "description" keys from LLM analysis
+        analysis: Optional dict from LLM qualitative analysis. Supported keys:
+            archetype (name, description), superpowers, communication_style,
+            growth_narrative, notable_moments, blind_spots.
+            Also accepts legacy format: just {"name": ..., "description": ...}
+            for backward compatibility when called with archetype dict.
         user_name: Display name for the report (default "Vibe Coder")
 
     Returns:
         Complete HTML string ready to write to file.
     """
+    # Normalize legacy archetype-only dict to full analysis format
+    if analysis and "name" in analysis and "archetype" not in analysis:
+        analysis = {"archetype": analysis}
+
     m = _safe_metrics(metrics)
     hero = m["hero"]
     concurrency = m["concurrency"]
@@ -291,6 +299,40 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
     }}
     .personality-card .value {{ font-size: 1.5rem; font-weight: 700; color: var(--secondary); }}
     .personality-card .label {{ font-size: 0.8rem; color: var(--muted); margin-top: 4px; }}
+    .superpower-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .superpower-card {{
+      background: rgba(188, 140, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }}
+    .superpower-card .sp-name {{ font-size: 1rem; font-weight: 600; color: var(--purple); margin-bottom: 6px; }}
+    .superpower-card .sp-desc {{ font-size: 0.85rem; color: var(--muted); }}
+    .narrative-text {{ font-size: 0.95rem; color: var(--muted); line-height: 1.7; margin-top: 12px; }}
+    .comm-style {{ font-size: 0.95rem; color: var(--muted); line-height: 1.7; margin-top: 12px; font-style: italic; }}
+    .moment-card {{
+      background: rgba(88, 166, 255, 0.06);
+      border-left: 3px solid var(--primary);
+      padding: 12px 16px;
+      margin-top: 12px;
+      border-radius: 0 8px 8px 0;
+    }}
+    .moment-card .moment-quote {{ font-style: italic; color: #fff; font-size: 0.95rem; }}
+    .moment-card .moment-ctx {{ font-size: 0.8rem; color: var(--muted); margin-top: 6px; }}
+    .blind-spot {{
+      background: rgba(210, 153, 34, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+    }}
+    .blind-spot .bs-name {{ font-size: 0.95rem; font-weight: 600; color: var(--warning); }}
+    .blind-spot .bs-desc {{ font-size: 0.85rem; color: var(--muted); margin-top: 4px; }}
     .footer {{ text-align: center; padding: 32px 0; font-size: 0.85rem; color: var(--muted); }}
     .footer a {{ color: var(--primary); text-decoration: none; }}
     .footer a:hover {{ text-decoration: underline; }}
@@ -333,7 +375,9 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
       </div>
 '''
 
-    if archetype and archetype.get("name"):
+    _a = analysis or {}
+    archetype = _a.get("archetype") or {}
+    if archetype.get("name"):
         arch_name = archetype.get("name", "")
         arch_desc = archetype.get("description", "")
         html += f'''
@@ -345,7 +389,31 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
 
     html += '''
     </section>
+'''
 
+    # Superpowers section (from qualitative analysis)
+    superpowers = _a.get("superpowers") or []
+    if superpowers:
+        html += '''
+    <!-- Superpowers -->
+    <section class="card">
+      <h2>Your Superpowers</h2>
+      <p class="subtitle">What sets you apart, based on your actual conversations</p>
+      <div class="superpower-grid">
+'''
+        for sp in superpowers[:4]:
+            sp_name = sp.get("name", "")
+            sp_desc = sp.get("description", "")
+            html += f'''        <div class="superpower-card">
+          <div class="sp-name">{sp_name}</div>
+          <div class="sp-desc">{sp_desc}</div>
+        </div>
+'''
+        html += '''      </div>
+    </section>
+'''
+
+    html += '''
     <!-- 2. Agent Concurrency -->
     <section class="card">
       <h2>Agent Concurrency</h2>
@@ -382,6 +450,17 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
       <h2>How You've Grown</h2>
       <p class="subtitle">Comparing your first 25% of sessions to your most recent 25%</p>
       <table class="growth-table" id="growth-table"></table>
+'''
+
+    growth_narrative = _a.get("growth_narrative") or ""
+    if growth_narrative:
+        html += f'''
+      <div class="narrative-text" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+        {growth_narrative}
+      </div>
+'''
+
+    html += '''
     </section>
 
     <!-- 7. Personality & Fun Stats -->
@@ -391,6 +470,61 @@ def generate_html_report(metrics: dict, archetype: dict | None = None, user_name
       <div class="personality-grid" id="personality-grid"></div>
     </section>
 
+'''
+
+    # Communication style (from qualitative analysis)
+    comm_style = _a.get("communication_style") or ""
+    if comm_style:
+        html += f'''
+    <!-- Communication Style -->
+    <section class="card">
+      <h2>How You Talk to AI</h2>
+      <p class="subtitle">Your communication fingerprint</p>
+      <div class="comm-style">{comm_style}</div>
+    </section>
+'''
+
+    # Notable moments (from qualitative analysis)
+    notable = _a.get("notable_moments") or []
+    if notable:
+        html += '''
+    <!-- Notable Moments -->
+    <section class="card">
+      <h2>Greatest Hits</h2>
+      <p class="subtitle">Moments that define your vibe</p>
+'''
+        for moment in notable[:5]:
+            quote = moment.get("quote", "")
+            ctx = moment.get("context", "")
+            html += f'''      <div class="moment-card">
+        <div class="moment-quote">"{quote}"</div>
+        {f'<div class="moment-ctx">{ctx}</div>' if ctx else ''}
+      </div>
+'''
+        html += '''    </section>
+'''
+
+    # Blind spots (from qualitative analysis)
+    blind_spots = _a.get("blind_spots") or []
+    if blind_spots:
+        html += '''
+    <!-- Growth Opportunities -->
+    <section class="card">
+      <h2>Room to Grow</h2>
+      <p class="subtitle">Honest observations — framed as opportunities</p>
+'''
+        for bs in blind_spots[:3]:
+            bs_name = bs.get("name", "")
+            bs_desc = bs.get("description", "")
+            html += f'''      <div class="blind-spot">
+        <div class="bs-name">{bs_name}</div>
+        <div class="bs-desc">{bs_desc}</div>
+      </div>
+'''
+        html += '''    </section>
+'''
+
+    html += '''
     <!-- 8. Footer -->
     <footer class="footer">
       <p>Generated by <a href="https://github.com/avivsheriff/motif-cli" target="_blank" rel="noopener">Motif</a></p>

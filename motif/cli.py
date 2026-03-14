@@ -604,21 +604,24 @@ def vibe_report(output, analysis, name):
     console.print(f"  [dim]Sessions: {hero['total_sessions']} | Projects: {hero['total_projects']} | Autonomy: {hero['autonomy_ratio']}x[/dim]")
     console.print(f"  [dim]Peak concurrency: {conc['peak_concurrent']} sessions | Avg daily: {conc['avg_daily_peak']:.1f}[/dim]")
 
-    archetype = None
+    analysis_data = None
     if analysis:
         import json
         try:
             with open(analysis, "r", encoding="utf-8") as f:
                 analysis_data = json.load(f)
-            archetype = analysis_data.get("archetype")
+            archetype = (analysis_data or {}).get("archetype")
             if archetype:
                 console.print(f"  [dim]Archetype: {archetype.get('name', '?')}[/dim]")
+            superpowers = (analysis_data or {}).get("superpowers") or []
+            if superpowers:
+                console.print(f"  [dim]Superpowers: {len(superpowers)} identified[/dim]")
         except (json.JSONDecodeError, OSError) as e:
             console.print(f"  [yellow]Warning: could not load analysis file: {e}[/yellow]")
 
     user_name = name or "Vibe Coder"
     console.print("  Generating HTML...")
-    html = generate_html_report(metrics, archetype, user_name=user_name)
+    html = generate_html_report(metrics, analysis=analysis_data, user_name=user_name)
 
     if output:
         from pathlib import Path

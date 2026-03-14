@@ -45,7 +45,7 @@ def run_setup(console: Console, auto: bool = False) -> bool:
         shutil.copy2(skill_src, target_path)
         console.print(f"[green]{'Updated' if auto else 'Installed'}![/green] motif-analyze skill at [cyan]{target_path}[/cyan]")
         if not auto:
-            console.print("Trigger phrases: 'analyze my coding patterns', 'generate rules for me', 'motif analyze'")
+            console.print("Trigger phrases: 'vibe report', 'motif live', 'personalize my AI', 'motif analyze'")
         return True
     except PermissionError:
         console.print(f"[red]Error:[/red] Permission denied writing to {target_path}")
