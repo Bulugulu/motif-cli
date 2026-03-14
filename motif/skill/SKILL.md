@@ -37,7 +37,7 @@ Next, check for updates:
 motif update
 ```
 
-If an update is available, the command will prompt the user to upgrade. **Let the user decide** — don't auto-upgrade. If they decline, continue with the current version. If they upgrade, re-verify with `motif --version` before proceeding.
+If an update is available, the command will prompt the user to upgrade. **Let the user decide** — don't auto-upgrade. If they decline, continue with the current version. If they upgrade, run `motif setup` to refresh installed skill files and slash commands, then re-verify with `motif --version` before proceeding.
 
 ### 2. Choose Your Action
 
