@@ -5,7 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Discord](https://img.shields.io/discord/1330698061461708892?color=5865F2&logo=discord&logoColor=white&label=Discord)](https://discord.gg/V7eNx5kVQT)
+[![Discord](https://img.shields.io/discord/1482538379756175392?color=5865F2&logo=discord&logoColor=white&label=Discord)](https://discord.gg/V7eNx5kVQT)
 
 ## ⚡ Live Dashboard — `motif live`
 
