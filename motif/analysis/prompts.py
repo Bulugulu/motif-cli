@@ -370,3 +370,61 @@ When assessing `problem_articulation.level`:
 - Don't be generic or flattering. If the data doesn't support a strong claim, say "insufficient evidence" rather than hedging with filler.
 - Don't use marketing language. You are a blunt assessor, not a hype writer.
 """
+
+
+def get_vibe_report_brief() -> str:
+    """Return a compact analysis brief for subagent delegation.
+
+    ~50 lines covering tone, observation categories, and output format.
+    Designed to be copy-pasted into subagent prompts alongside a data batch.
+    The parent agent uses the full instructions for synthesis.
+    """
+    return """# Vibe Report Analysis Brief
+
+## Tone
+
+Concise, direct, blunt. No filler adjectives. State what evidence shows.
+For archetype/blind-spot descriptions: channel Terry Pratchett — dry, absurd, observational.
+Banned: impressive, remarkable, powerful, game-changer, next-level, crushing it, showcases, demonstrates mastery.
+
+## Your Task
+
+Read the conversation batch and extract observations in these categories.
+Return a JSON array of observation objects.
+
+## Observation Categories
+
+1. **Notable quotes** — funny, revealing, or showing personality. Use exact words.
+2. **Archetype signals** — how the user approaches AI collaboration (delegator, interrogator, pair-programmer, etc.)
+3. **Superpower evidence** — genuinely distinctive strengths, not generic compliments. Cite specific behavior.
+4. **Blind spot evidence** — recurring weaknesses. Name the problem directly.
+5. **Questioning behavior** — classify each question as: procedural, conceptual, diagnostic, metacognitive, socratic, or strategic. Include the quote and Bloom's level (Remember/Understand/Apply/Analyze/Evaluate/Create).
+6. **Communication style** — how they talk to AI: terse vs detailed, structured vs freeform, correction patterns.
+7. **Problem articulation** — rate as vague/basic/structured/diagnostic. Include weakest and strongest examples.
+8. **Domain expertise** — concepts demonstrated (not just mentioned), depth: surface/working/deep.
+9. **Critical thinking** — hypothesis formation, alternative consideration, assumption questioning, evidence evaluation. Mark present/absent with example.
+10. **Vibe coding level** — place on 6-level scale (Novice/Beginner/Intermediate/Proficient/Advanced/Expert). Cite rubric indicators.
+
+## Output Format
+
+```json
+[
+  {
+    "category": "notable_quotes | archetype | superpower | blind_spot | questioning | communication_style | problem_articulation | domain_expertise | critical_thinking | vibe_coding_level",
+    "observation": "string — the finding",
+    "evidence": "string — exact quote or specific reference from the data",
+    "metadata": {}
+  }
+]
+```
+
+For questioning observations, include in metadata: `{"question_type": "...", "bloom_level": "..."}`
+For vibe_coding_level, include: `{"level": 4, "name": "Proficient", "strongest_skill": "...", "weakest_skill": "..."}`
+
+## Rules
+
+- Use the user's actual words. Don't invent quotes.
+- Skip pasted data (JSON blobs, email threads) — focus on the user's own words.
+- If a category has no evidence in this batch, omit it. Don't fabricate.
+- Be blunt. "Insufficient evidence" is better than hedging.
+"""

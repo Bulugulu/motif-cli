@@ -105,7 +105,7 @@ Run the analysis pipeline in vibe-report mode. This strips system noise, applies
 motif analyze --prepare --mode vibe-report
 ```
 
-The command prints paths to the prepared files: an **instructions file** and one or more **data batch files** (~20k tokens each). Read the **instructions file** first — it contains the analysis prompt, session index, and synthesis instructions.
+The command prints paths to the prepared files: an **instructions file**, an **analysis brief**, a **session index**, and one or more **data batch files** (~20k tokens each). Read the **instructions file** first — it contains the analysis prompt and synthesis instructions.
 
 **If 0 scoped messages or fewer than 10 user messages:** Skip qualitative analysis -- proceed directly to A4 and generate the report without it. Tell the user: "Not enough conversation history for qualitative analysis. Your report will include all quantitative metrics. Come back after more conversations for the full experience."
 
@@ -113,9 +113,9 @@ The command prints paths to the prepared files: an **instructions file** and one
 
 **Tell the user:** "Reading your conversations and running qualitative analysis — this takes about a minute."
 
-The instructions file contains the analysis prompt with the JSON schema, assessment frameworks, and guidelines. The data batch files contain conversation sessions.
+The instructions file contains the full analysis prompt with JSON schema, assessment frameworks, and guidelines. The **analysis brief** is a compact (~50-line) version designed for subagent delegation. The data batch files contain conversation sessions.
 
-**In Cursor:** Delegate each data batch to a subagent (fast model). Pass the analysis instructions from the instructions file along with one batch file. Each subagent reads its batch and returns structured observations (notable quotes, archetype signals, superpower evidence, blind spot evidence, questioning behavior examples, communication style patterns). Then synthesize all observations into the final JSON following the schema in the instructions.
+**In Cursor:** Delegate each data batch to a subagent (fast model). Pass the **analysis brief** (not the full instructions file) along with one batch file to each subagent. Each subagent reads its batch and returns structured observations (notable quotes, archetype signals, superpower evidence, blind spot evidence, questioning behavior examples, communication style patterns). Then synthesize all observations into the final JSON following the schema in the full instructions file.
 
 **In Claude Code:** Read each data batch sequentially, taking notes on the same observation categories. Then synthesize into the final JSON.
 
@@ -139,9 +139,10 @@ motif vibe-report --name "User Name" --analysis <path_to_analysis_json>
 motif vibe-report --name "User Name"
 ```
 
-The command outputs the path to the HTML file. Tell the user:
+The report auto-opens in the user's browser by default. If that fails or isn't desired, pass `--no-open`.
+
+Tell the user:
 - **Where the file is** (the path printed by the command)
-- **How to view it** — "Open this file in your browser to see your report"
 - **It's shareable** — self-contained HTML, send it to anyone
 
 **Done.** No further steps needed for this path.

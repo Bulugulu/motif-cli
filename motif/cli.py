@@ -356,13 +356,19 @@ def analyze(prepare, project, budget, mode, stats, no_filter, preview):
                 f.write(content)
             written_paths.append(out_path)
 
+        batch_count = sum(1 for s, _ in output if s.startswith("batch-"))
         console.print(f"\n[green]Prepared analysis written to {len(written_paths)} files:[/green]")
         for p in written_paths:
-            label = "[bold cyan]>>[/bold cyan]" if "instructions" in p.name else "  "
+            if "instructions" in p.name:
+                label = "[bold cyan]>>[/bold cyan]"
+            elif "analysis-brief" in p.name:
+                label = "[bold cyan]>>[/bold cyan]"
+            else:
+                label = "  "
             console.print(f"  {label} [cyan]{p}[/cyan]")
-        console.print(f"\nThe instructions file contains the analysis prompt and session index.")
-        console.print(f"Data is split across {len(written_paths) - 1} batch file(s), ~20k tokens each.")
+        console.print(f"\nData is split across {batch_count} batch file(s), ~20k tokens each.")
         console.print("Your agent should read the instructions file first, then the batch files.")
+        console.print("The analysis-brief file is a compact version for delegating to subagents.")
     else:
         out_path = out_dir / f"prepared-{safe_project}-{timestamp}.md"
         with open(out_path, "w", encoding="utf-8") as f:
@@ -606,7 +612,8 @@ def report(analysis_file, output, project):
 @click.option("--output", "-o", default=None, help="Output file path (default: ~/.motif/reports/vibe-report-{date}.html)")
 @click.option("--analysis", "-a", default=None, type=click.Path(exists=True), help="Analysis JSON for archetype generation")
 @click.option("--name", "-n", default=None, help="Your name for the report header")
-def vibe_report(output, analysis, name):
+@click.option("--open/--no-open", "open_report", default=True, help="Auto-open report in browser (default: True)")
+def vibe_report(output, analysis, name, open_report):
     """Generate a shareable HTML vibe report from all extracted conversations.
 
     Computes metrics across all your projects and produces a visual,
@@ -617,6 +624,7 @@ def vibe_report(output, analysis, name):
     from motif.report.html import generate_html_report
     from motif.config import get_motif_dir
     from datetime import datetime
+    import webbrowser
 
     console.print("[bold]Generating your Vibe Report...[/bold]\n")
 
@@ -664,7 +672,12 @@ def vibe_report(output, analysis, name):
 
     out_path.write_text(html, encoding="utf-8")
     console.print(f"\n[green]Vibe Report written to:[/green] [cyan]{out_path}[/cyan]")
-    console.print(f"Open in a browser to see your report!")
+
+    if open_report:
+        webbrowser.open(out_path.resolve().as_uri())
+        console.print("Opened in your browser!")
+    else:
+        console.print("Open in a browser to see your report!")
 
 
 # ── Live Dashboard ──────────────────────────────────────────────────

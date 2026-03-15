@@ -8,7 +8,7 @@ Output is a markdown file with structured data + analysis prompt.
 import re
 from collections import OrderedDict
 
-from motif.analysis.prompts import get_analysis_prompt, get_vibe_report_prompt
+from motif.analysis.prompts import get_analysis_prompt, get_vibe_report_prompt, get_vibe_report_brief
 
 TRUNCATE_MARKER = "[...truncated]"
 USER_LIMIT_DEFAULT = 1500
@@ -710,25 +710,20 @@ def format_prepared_output_split(
     instr.append(get_vibe_report_prompt())
     instr.append("")
 
-    # Session index: which batch contains which sessions
+    # Compact batch summary (full session index emitted as separate file)
     instr.append("---")
     instr.append("")
-    instr.append("## Session Index")
+    instr.append("## Data Summary")
     instr.append("")
     batch_session_map: dict[int, list[str]] = {}
-    session_list = list(sessions_all.keys())
-    msg_idx = 0
     for batch_num, batch_msgs in enumerate(batches, 1):
-        batch_sids = []
         batch_sessions = _group_by_session(batch_msgs)
-        for sid in batch_sessions:
-            batch_sids.append(sid)
+        batch_sids = list(batch_sessions.keys())
         batch_session_map[batch_num] = batch_sids
-        for sid in batch_sids:
-            short_id = sid.split(":")[-1][:20] if ":" in sid else str(sid)[:20]
-            msg_count = len(sessions_all[sid])
-            ts = sessions_all[sid][0].get("timestamp", "?")
-            instr.append(f"- **{short_id}** ({ts}, {msg_count} msgs) — batch-{batch_num}")
+        instr.append(f"- **Batch {batch_num}:** {len(batch_sids)} sessions ({len(batch_msgs)} msgs)")
+    instr.append(f"- **Total:** {len(sessions_all)} sessions across {len(batches)} batch(es)")
+    instr.append("")
+    instr.append("A separate `session-index` file lists every session with its batch assignment. Read it only if you need to cross-reference specific sessions.")
     instr.append("")
 
     # Synthesis instructions
@@ -765,6 +760,24 @@ def format_prepared_output_split(
 
     files = [("instructions", "\n".join(instr))]
 
+    # --- Build session index file ---
+    idx_lines = [f"# Session Index: {project}", ""]
+    idx_lines.append(f"**Total sessions:** {len(sessions_all)} | **Batches:** {len(batches)}")
+    idx_lines.append("")
+    for batch_num, batch_sids in batch_session_map.items():
+        idx_lines.append(f"## Batch {batch_num}")
+        idx_lines.append("")
+        for sid in batch_sids:
+            short_id = sid.split(":")[-1][:20] if ":" in sid else str(sid)[:20]
+            msg_count = len(sessions_all[sid])
+            ts = sessions_all[sid][0].get("timestamp", "?")
+            idx_lines.append(f"- **{short_id}** ({ts}, {msg_count} msgs)")
+        idx_lines.append("")
+    files.append(("session-index", "\n".join(idx_lines)))
+
+    # --- Build analysis brief (compact version for subagent delegation) ---
+    files.append(("analysis-brief", get_vibe_report_brief()))
+
     # --- Build batch files ---
     for batch_num, batch_msgs in enumerate(batches, 1):
         batch_sessions = _group_by_session(batch_msgs)
@@ -779,6 +792,24 @@ def format_prepared_output_split(
         files.append((f"batch-{batch_num}", "\n".join(batch_lines)))
 
     return files
+
+
+def _filter_no_user_sessions(messages: list[dict]) -> tuple[list[dict], int]:
+    """Remove sessions that contain zero user messages.
+
+    Assistant-only or system-generated sessions can't reveal communication
+    style, questioning behavior, or any qualitative dimension.
+    """
+    sessions = _group_by_session(messages)
+    kept: list[dict] = []
+    removed_count = 0
+    for _sid, msgs in sessions.items():
+        has_user = any(m.get("role") == "user" for m in msgs)
+        if has_user:
+            kept.extend(msgs)
+        else:
+            removed_count += 1
+    return kept, removed_count
 
 
 def prepare_analysis(
@@ -826,11 +857,15 @@ def prepare_analysis(
 
     # Stage 4b: Strip system/tool metadata for vibe-report mode
     noise_stripped_count = 0
+    no_user_sessions_removed = 0
     if mode == "vibe-report":
         before_strip = sum(len(_get_message_text(m)) for m in filtered)
         filtered = strip_system_noise(filtered)
         after_strip = sum(len(_get_message_text(m)) for m in filtered)
         noise_stripped_count = (before_strip - after_strip) // TOKEN_ESTIMATE_CHARS
+
+        # Stage 4c: Remove sessions with no user messages
+        filtered, no_user_sessions_removed = _filter_no_user_sessions(filtered)
 
     # Stage 5: Token budget
     final = apply_token_budget(filtered, effective_budget)
@@ -861,6 +896,7 @@ def prepare_analysis(
 
     if mode == "vibe-report":
         pipeline_stats["system_noise_stripped_tokens"] = noise_stripped_count
+        pipeline_stats["sessions_no_user_removed"] = no_user_sessions_removed
         output = format_prepared_output_split(
             final, project, total_raw, pipeline_stats,
         )
