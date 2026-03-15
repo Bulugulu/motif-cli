@@ -220,7 +220,7 @@ def _resolve_project(project_arg, console):
 @cli.command()
 @click.option("--prepare", is_flag=True, required=True, help="Prepare analysis data + prompt for the host agent")
 @click.option("--project", "-p", default=None, help="Project to analyze (default: current directory name)")
-@click.option("--budget", "-b", default=60000, type=int, help="Token budget for prepared output (default: 60000)")
+@click.option("--budget", "-b", default=None, type=int, help="Token budget (default: 200000 for vibe-report, 60000 for full)")
 @click.option("--mode", "-m", default="full", type=click.Choice(["full", "vibe-report"]), help="Analysis mode: 'full' for Personalize AI, 'vibe-report' for qualitative vibe report")
 @click.option("--stats", is_flag=True, help="Show pipeline stats only, don't write output")
 @click.option("--no-filter", is_flag=True, help="Skip relevance filtering (include all project-scoped conversations)")
@@ -295,8 +295,12 @@ def analyze(prepare, project, budget, mode, stats, no_filter, preview):
             console.print(f"\nUse [cyan]--no-filter[/cyan] to keep all sessions.")
         return
 
+    from motif.analysis.pipeline import BUDGET_VIBE_REPORT, BUDGET_DEFAULT
+    effective_budget = budget if budget is not None else (
+        BUDGET_VIBE_REPORT if mode == "vibe-report" else BUDGET_DEFAULT
+    )
     mode_label = "vibe report" if mode == "vibe-report" else "full"
-    console.print(f"Preparing analysis for [bold]{project}[/bold] (mode: {mode_label}, budget: {budget} tokens)...")
+    console.print(f"Preparing analysis for [bold]{project}[/bold] (mode: {mode_label}, budget: {effective_budget} tokens)...")
 
     output, pipeline_stats = prepare_analysis(
         all_messages, project, budget,
@@ -342,15 +346,32 @@ def analyze(prepare, project, budget, mode, stats, no_filter, preview):
     out_dir = get_analysis_dir()
     safe_project = "".join(c if c.isalnum() or c in "-_" else "_" for c in project)
     from datetime import datetime
-    out_path = out_dir / f"prepared-{safe_project}-{datetime.now().strftime('%Y-%m-%d')}.md"
+    timestamp = datetime.now().strftime('%Y-%m-%d-%H%M')
 
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(output)
+    if mode == "vibe-report" and isinstance(output, list):
+        written_paths = []
+        for suffix, content in output:
+            out_path = out_dir / f"prepared-{safe_project}-{timestamp}-{suffix}.md"
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            written_paths.append(out_path)
 
-    console.print(f"\n[green]Prepared analysis written to:[/green]")
-    console.print(f"  [cyan]{out_path}[/cyan]")
-    console.print(f"\nThe file contains {pipeline_stats['final_count']} messages + analysis instructions.")
-    console.print("Your Cursor agent can read this file and follow the analysis instructions.")
+        console.print(f"\n[green]Prepared analysis written to {len(written_paths)} files:[/green]")
+        for p in written_paths:
+            label = "[bold cyan]→[/bold cyan]" if "instructions" in p.name else "  "
+            console.print(f"  {label} [cyan]{p}[/cyan]")
+        console.print(f"\nThe instructions file contains the analysis prompt and session index.")
+        console.print(f"Data is split across {len(written_paths) - 1} batch file(s), ~20k tokens each.")
+        console.print("Your agent should read the instructions file first, then the batch files.")
+    else:
+        out_path = out_dir / f"prepared-{safe_project}-{timestamp}.md"
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(output)
+
+        console.print(f"\n[green]Prepared analysis written to:[/green]")
+        console.print(f"  [cyan]{out_path}[/cyan]")
+        console.print(f"\nThe file contains {pipeline_stats['final_count']} messages + analysis instructions.")
+        console.print("Your Cursor agent can read this file and follow the analysis instructions.")
 
 
 # ── Status ──────────────────────────────────────────────────────────
@@ -639,7 +660,7 @@ def vibe_report(output, analysis, name):
     else:
         reports_dir = get_motif_dir() / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
-        out_path = reports_dir / f"vibe-report-{datetime.now().strftime('%Y-%m-%d')}.html"
+        out_path = reports_dir / f"vibe-report-{datetime.now().strftime('%Y-%m-%d-%H%M')}.html"
 
     out_path.write_text(html, encoding="utf-8")
     console.print(f"\n[green]Vibe Report written to:[/green] [cyan]{out_path}[/cyan]")

@@ -17,6 +17,8 @@ MAX_LINES = 5000
 MAX_CHARS = 50000
 TOKEN_ESTIMATE_CHARS = 4
 BUDGET_DEFAULT = 60000
+BUDGET_VIBE_REPORT = 200000
+BATCH_TOKEN_LIMIT = 20000
 TIGHT_USER_LIMIT = 1000
 TIGHT_ASSISTANT_LIMIT = 150
 DEDUP_MIN_LENGTH = 5
@@ -307,41 +309,84 @@ def filter_noise(
 
 
 # Regex for XML-style system tags injected by agent platforms
+_NOISE_TAGS = (
+    r'system_reminder|command-name|command-message|local-command-caveat'
+    r'|tool_use|tool_result|antml_invoke|antml_parameter|think'
+    r'|attached_files|open_and_recently_viewed_files'
+    r'|code_selection|task_notification'
+)
 _SYSTEM_TAG_RE = re.compile(
-    r'<(?:system_reminder|command-name|local-command-caveat|tool_use|tool_result'
-    r'|antml_invoke|antml_parameter|attached_files|open_and_recently_viewed_files'
-    r'|code_selection|task_notification)[\s>].*?</(?:system_reminder|command-name'
-    r'|local-command-caveat|tool_use|tool_result|antml_invoke|antml_parameter'
-    r'|attached_files|open_and_recently_viewed_files|code_selection|task_notification)>',
+    rf'<(?:{_NOISE_TAGS})[\s>].*?</(?:{_NOISE_TAGS})>',
     re.DOTALL,
 )
 _SELF_CLOSING_TAG_RE = re.compile(
-    r'<(?:system_reminder|command-name|local-command-caveat|tool_use|tool_result'
-    r'|antml_invoke|antml_parameter|attached_files|open_and_recently_viewed_files'
-    r'|code_selection|task_notification)[^>]*/\s*>',
+    rf'<(?:{_NOISE_TAGS})[^>]*/\s*>',
 )
+_TOOL_LINE_RE = re.compile(r'^\[Tool:.*\]\s*$', re.MULTILINE)
+
+REPEATED_MSG_MIN_LEN = 500
+REPEATED_MSG_MIN_COUNT = 3
+EMPTY_ASSISTANT_MIN_LEN = 50
 
 
 def strip_system_noise(messages: list[dict]) -> list[dict]:
-    """Strip XML-style system/tool metadata tags from message content.
+    """Strip XML-style system/tool metadata tags and other noise from messages.
 
-    Targets tags like <system_reminder>, <command-name>, <tool_use>, etc.
-    that add noise for qualitative analysis. Preserves the user's actual words.
+    Targets tags like <system_reminder>, <think>, <command-message>, etc.,
+    [Tool: ...] lines, repeated large user messages (e.g. SKILL.md loaded
+    each session), and empty assistant stubs left after stripping.
     """
-    result = []
+    # Pass 1: strip tags and tool lines
+    cleaned_msgs = []
     for m in messages:
         content = _get_message_text(m)
         if not content:
-            result.append(m)
+            cleaned_msgs.append(m)
             continue
         cleaned = _SYSTEM_TAG_RE.sub("", content)
         cleaned = _SELF_CLOSING_TAG_RE.sub("", cleaned)
-        # Collapse runs of 3+ newlines left by removed blocks
+        cleaned = _TOOL_LINE_RE.sub("", cleaned)
         cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
         if cleaned:
-            result.append({**m, "content": cleaned})
+            cleaned_msgs.append({**m, "content": cleaned})
         else:
-            result.append(m)
+            cleaned_msgs.append(m)
+
+    # Pass 2: deduplicate repeated large user messages (e.g. SKILL.md loads)
+    user_text_counts: dict[str, int] = {}
+    for m in cleaned_msgs:
+        if m.get("role") == "user":
+            text = _get_message_text(m)
+            if len(text) >= REPEATED_MSG_MIN_LEN:
+                key = text[:REPEATED_MSG_MIN_LEN].strip().lower()
+                user_text_counts[key] = user_text_counts.get(key, 0) + 1
+
+    repeated_keys = {k for k, v in user_text_counts.items() if v >= REPEATED_MSG_MIN_COUNT}
+    seen_repeated: dict[str, int] = {}
+    deduped = []
+    for m in cleaned_msgs:
+        if m.get("role") == "user":
+            text = _get_message_text(m)
+            if len(text) >= REPEATED_MSG_MIN_LEN:
+                key = text[:REPEATED_MSG_MIN_LEN].strip().lower()
+                if key in repeated_keys:
+                    seen_repeated[key] = seen_repeated.get(key, 0) + 1
+                    if seen_repeated[key] > 1:
+                        total = user_text_counts[key]
+                        stub = f"[Repeated content — seen {total} times, shown once above]"
+                        deduped.append({**m, "content": stub})
+                        continue
+        deduped.append(m)
+
+    # Pass 3: drop empty assistant stubs
+    result = []
+    for m in deduped:
+        if m.get("role") != "user":
+            text = _get_message_text(m).strip()
+            if len(text) < EMPTY_ASSISTANT_MIN_LEN:
+                continue
+        result.append(m)
+
     return result
 
 
@@ -600,22 +645,163 @@ def format_prepared_output(
     return "\n".join(lines)
 
 
+def _split_into_batches(
+    messages: list[dict],
+    batch_token_limit: int = BATCH_TOKEN_LIMIT,
+) -> list[list[dict]]:
+    """Split messages into batches grouped by session, each under batch_token_limit tokens.
+
+    Sessions are kept intact — a session is never split across batches.
+    """
+    sessions = _group_by_session(messages)
+    batches: list[list[dict]] = []
+    current_batch: list[dict] = []
+    current_tokens = 0
+
+    for _sid, session_msgs in sessions.items():
+        session_tokens = sum(
+            len(_get_message_text(m)) for m in session_msgs
+        ) // TOKEN_ESTIMATE_CHARS
+
+        if current_batch and (current_tokens + session_tokens) > batch_token_limit:
+            batches.append(current_batch)
+            current_batch = []
+            current_tokens = 0
+
+        current_batch.extend(session_msgs)
+        current_tokens += session_tokens
+
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
+def format_prepared_output_split(
+    messages: list[dict],
+    project: str,
+    total_raw_count: int,
+    pipeline_stats: dict,
+) -> list[tuple[str, str]]:
+    """Split vibe-report output into an instructions file + N batch data files.
+
+    Returns a list of (filename_suffix, content) tuples:
+      [("instructions", instr_md), ("batch-1", batch1_md), ("batch-2", batch2_md), ...]
+    """
+    batches = _split_into_batches(messages)
+    sessions_all = _group_by_session(messages)
+
+    timestamps = [m.get("timestamp") for m in messages if m.get("timestamp")]
+    date_range = "\u2014"
+    if timestamps:
+        sorted_ts = sorted(timestamps)
+        date_range = f"{sorted_ts[0]} to {sorted_ts[-1]}"
+
+    # --- Build instructions file ---
+    instr = []
+    instr.append(f"# Motif Analysis: {project}")
+    instr.append("")
+    instr.append(f"**Date range:** {date_range}")
+    instr.append(f"**Raw messages (all projects):** {total_raw_count}")
+    instr.append(f"**Filtered messages:** {len(messages)}")
+    instr.append(f"**Data files:** {len(batches)} batch(es)")
+    instr.append("")
+
+    instr.append(get_vibe_report_prompt())
+    instr.append("")
+
+    # Session index: which batch contains which sessions
+    instr.append("---")
+    instr.append("")
+    instr.append("## Session Index")
+    instr.append("")
+    batch_session_map: dict[int, list[str]] = {}
+    session_list = list(sessions_all.keys())
+    msg_idx = 0
+    for batch_num, batch_msgs in enumerate(batches, 1):
+        batch_sids = []
+        batch_sessions = _group_by_session(batch_msgs)
+        for sid in batch_sessions:
+            batch_sids.append(sid)
+        batch_session_map[batch_num] = batch_sids
+        for sid in batch_sids:
+            short_id = sid.split(":")[-1][:20] if ":" in sid else str(sid)[:20]
+            msg_count = len(sessions_all[sid])
+            ts = sessions_all[sid][0].get("timestamp", "?")
+            instr.append(f"- **{short_id}** ({ts}, {msg_count} msgs) — batch-{batch_num}")
+    instr.append("")
+
+    # Synthesis instructions
+    instr.append("---")
+    instr.append("")
+    instr.append("## Synthesis Instructions")
+    instr.append("")
+    instr.append(f"There are **{len(batches)} data batch file(s)** to read.")
+    instr.append("Each batch contains conversation sessions formatted as `### Session <id>` blocks.")
+    instr.append("")
+    instr.append("**For each batch**, extract these observations:")
+    instr.append("- Notable quotes (funny, revealing, or showing personality)")
+    instr.append("- Archetype signals (how the user approaches AI collaboration)")
+    instr.append("- Superpower evidence (distinctive strengths)")
+    instr.append("- Blind spot evidence (recurring weaknesses)")
+    instr.append("- Questioning behavior examples (with type classification)")
+    instr.append("- Communication style patterns")
+    instr.append("- Problem articulation examples (weakest and strongest)")
+    instr.append("- Domain expertise indicators")
+    instr.append("- Critical thinking evidence")
+    instr.append("- Vibe coding level indicators")
+    instr.append("")
+    instr.append("After reading all batches, **synthesize** the observations into the final JSON following the schema above.")
+    instr.append("")
+
+    # Pipeline statistics
+    instr.append("---")
+    instr.append("")
+    instr.append("## Pipeline Statistics")
+    instr.append("")
+    for key, val in pipeline_stats.items():
+        instr.append(f"- **{key}:** {val}")
+    instr.append("")
+
+    files = [("instructions", "\n".join(instr))]
+
+    # --- Build batch files ---
+    for batch_num, batch_msgs in enumerate(batches, 1):
+        batch_sessions = _group_by_session(batch_msgs)
+        batch_lines = []
+        batch_lines.append(f"# Batch {batch_num} of {len(batches)}")
+        batch_lines.append("")
+        batch_lines.append(f"**Sessions:** {len(batch_sessions)} | **Messages:** {len(batch_msgs)}")
+        batch_lines.append("")
+        batch_lines.append("---")
+        batch_lines.append("")
+        batch_lines.extend(_format_conversation_block(batch_msgs))
+        files.append((f"batch-{batch_num}", "\n".join(batch_lines)))
+
+    return files
+
+
 def prepare_analysis(
     messages: list[dict],
     project: str,
-    budget: int = BUDGET_DEFAULT,
+    budget: int | None = None,
     skip_relevance_filter: bool = False,
     mode: str = "full",
-) -> tuple[str, dict]:
+) -> tuple[str | list[tuple[str, str]], dict]:
     """Run the full pipeline and return formatted output + stats.
 
     Stages: scope -> relevance filter -> prepare -> noise filter
             -> [system noise strip for vibe-report] -> budget -> format.
 
     mode="full" (default): Personalize AI flow with full analysis prompt.
+        Returns (single_string, stats).
     mode="vibe-report": Qualitative vibe report flow — strips system noise,
-        puts instructions first, uses vibe-report-specific prompt.
+        splits output into instructions + batch files.
+        Returns (list_of_(suffix, content)_tuples, stats).
     """
+    effective_budget = budget if budget is not None else (
+        BUDGET_VIBE_REPORT if mode == "vibe-report" else BUDGET_DEFAULT
+    )
     total_raw = len(messages)
 
     # Stage 1: Scope to project (with normalized name matching)
@@ -647,13 +833,13 @@ def prepare_analysis(
         noise_stripped_count = (before_strip - after_strip) // TOKEN_ESTIMATE_CHARS
 
     # Stage 5: Token budget
-    final = apply_token_budget(filtered, budget)
+    final = apply_token_budget(filtered, effective_budget)
     final_count = len(final)
 
     estimated_tokens = sum(len(_get_message_text(m)) for m in final) // TOKEN_ESTIMATE_CHARS
     tokens_after_prepare = sum(len(_get_message_text(m)) for m in prepared) // TOKEN_ESTIMATE_CHARS
     tokens_after_filter = sum(len(_get_message_text(m)) for m in filtered) // TOKEN_ESTIMATE_CHARS
-    budget_applied = filtered_count != final_count or estimated_tokens > budget
+    budget_applied = filtered_count != final_count
 
     pipeline_stats = {
         "raw_count": total_raw,
@@ -669,17 +855,20 @@ def prepare_analysis(
         "tokens_after_filter": tokens_after_filter,
         "dropped_noise": noise_stats.get("dropped_total", 0),
         "budget_applied": budget_applied,
+        "budget": effective_budget,
         "mode": mode,
     }
 
     if mode == "vibe-report":
         pipeline_stats["system_noise_stripped_tokens"] = noise_stripped_count
+        output = format_prepared_output_split(
+            final, project, total_raw, pipeline_stats,
+        )
+        return output, pipeline_stats
 
-    existing_claude_md = None
-    if mode != "vibe-report":
-        existing_claude_md = _find_existing_claude_md()
-        if existing_claude_md:
-            pipeline_stats["existing_claude_md"] = True
+    existing_claude_md = _find_existing_claude_md()
+    if existing_claude_md:
+        pipeline_stats["existing_claude_md"] = True
 
     output = format_prepared_output(
         final, project, total_raw, pipeline_stats,

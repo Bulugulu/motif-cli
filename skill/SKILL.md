@@ -89,6 +89,8 @@ The key output of Motif — a self-contained HTML assessment of how you work wit
 
 #### A1. Extract Conversations
 
+**Tell the user:** "Extracting your conversation history — scanning Cursor and Claude Code data..."
+
 ```bash
 motif extract all
 ```
@@ -97,26 +99,31 @@ motif extract all
 
 #### A2. Prepare Data for Qualitative Analysis
 
-Run the analysis pipeline in vibe-report mode. This strips system noise, places analysis instructions at the top, and uses the vibe-report-specific prompt:
+Run the analysis pipeline in vibe-report mode. This strips system noise, applies a 200k token budget, and splits output into multiple agent-friendly files:
 
 ```bash
 motif analyze --prepare --mode vibe-report
 ```
 
-The command prints the path to the prepared output file. **Read that file** using the Read tool.
+The command prints paths to the prepared files: an **instructions file** and one or more **data batch files** (~20k tokens each). Read the **instructions file** first — it contains the analysis prompt, session index, and synthesis instructions.
 
 **If 0 scoped messages or fewer than 10 user messages:** Skip qualitative analysis -- proceed directly to A4 and generate the report without it. Tell the user: "Not enough conversation history for qualitative analysis. Your report will include all quantitative metrics. Come back after more conversations for the full experience."
 
 #### A3. Run Qualitative Analysis
 
-The prepared file contains vibe report analysis instructions at the top, followed by conversation data. **Follow the instructions in the file** -- they specify the exact JSON schema, guidelines, and what to look for.
+**Tell the user:** "Reading your conversations and running qualitative analysis — this takes about a minute."
+
+The instructions file contains the analysis prompt with the JSON schema, assessment frameworks, and guidelines. The data batch files contain conversation sessions.
+
+**In Cursor:** Delegate each data batch to a subagent (fast model). Pass the analysis instructions from the instructions file along with one batch file. Each subagent reads its batch and returns structured observations (notable quotes, archetype signals, superpower evidence, blind spot evidence, questioning behavior examples, communication style patterns). Then synthesize all observations into the final JSON following the schema in the instructions.
+
+**In Claude Code:** Read each data batch sequentially, taking notes on the same observation categories. Then synthesize into the final JSON.
 
 **Save the JSON** to `~/.motif/analysis/vibe-report-analysis-{YYYY-MM-DD}-{HHMM}.json` (include hours and minutes to avoid same-day collisions).
 
-**In Cursor:** You can delegate this analysis to a subagent (fast model) with the prepared data and the instructions from the file.
-**In Claude Code:** Perform the analysis inline.
-
 #### A4. Generate the Report
+
+**Tell the user:** "Generating your vibe report — computing metrics and building HTML..."
 
 The vibe report uses all extracted projects by default -- no project selection needed.
 
@@ -400,7 +407,7 @@ If deploying manually (without `--apply`), write to the correct paths for the us
 |-----------|----------|
 | motif not installed | Give install instructions: `pip install motif-cli`, then use `motif` |
 | No conversations found | "You need some Cursor/Claude Code conversation history first. Use your AI assistant for a while and try again." |
-| Prepared file too large | "The analysis data is very large. Running with a smaller budget: `motif analyze --prepare --budget 40000`" |
+| Many batch files generated | "Data split across many batch files — delegate each to a subagent for parallel analysis." |
 | Fewer than 20 user messages | "Limited data available. Analysis may be thin. Consider accumulating more conversation history." |
 | Web search unavailable | Skip search step, generate all skills from scratch using exemplars as quality reference |
 
