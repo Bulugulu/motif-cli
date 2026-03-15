@@ -333,6 +333,105 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
     }}
     .blind-spot .bs-name {{ font-size: 0.95rem; font-weight: 600; color: var(--warning); }}
     .blind-spot .bs-desc {{ font-size: 0.85rem; color: var(--muted); margin-top: 4px; }}
+    .level-badge {{
+      margin-top: 16px;
+      padding: 20px;
+      border: 2px solid var(--secondary);
+      border-radius: 12px;
+      background: rgba(63, 185, 80, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }}
+    .level-badge .level-number {{
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--secondary);
+      line-height: 1;
+      min-width: 60px;
+      text-align: center;
+    }}
+    .level-badge .level-info {{ flex: 1; }}
+    .level-badge .level-name {{ font-size: 1.1rem; font-weight: 600; color: var(--secondary); }}
+    .level-badge .level-evidence {{ font-size: 0.85rem; color: var(--muted); margin-top: 4px; }}
+    .level-badge .level-skills {{ font-size: 0.8rem; color: var(--muted); margin-top: 8px; }}
+    .level-badge .level-skills span {{ color: var(--secondary); font-weight: 500; }}
+    .level-badge .level-skills .weak {{ color: var(--warning); }}
+    .assessment-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .assessment-card {{
+      background: rgba(88, 166, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }}
+    .assessment-card .ac-label {{ font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }}
+    .assessment-card .ac-value {{ font-size: 1.1rem; font-weight: 600; color: var(--primary); margin-top: 4px; }}
+    .assessment-card .ac-detail {{ font-size: 0.85rem; color: var(--muted); margin-top: 8px; }}
+    .q-example {{
+      background: rgba(88, 166, 255, 0.04);
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      margin-top: 10px;
+      border-radius: 0 8px 8px 0;
+    }}
+    .q-example .q-type {{ font-size: 0.75rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }}
+    .q-example .q-quote {{ font-style: italic; color: #fff; font-size: 0.9rem; margin-top: 4px; }}
+    .q-example .q-bloom {{ font-size: 0.75rem; color: var(--muted); margin-top: 4px; }}
+    .ct-indicators {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }}
+    .ct-ind {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 6px 12px;
+      background: rgba(88, 166, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }}
+    .ct-ind .ct-check {{ color: var(--secondary); font-weight: 700; }}
+    .ct-ind .ct-x {{ color: var(--danger); font-weight: 700; }}
+    .articulation-compare {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .articulation-box {{
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }}
+    .articulation-box.weak-box {{
+      background: rgba(248, 81, 73, 0.06);
+      border: 1px solid rgba(248, 81, 73, 0.2);
+    }}
+    .articulation-box.strong-box {{
+      background: rgba(63, 185, 80, 0.06);
+      border: 1px solid rgba(63, 185, 80, 0.2);
+    }}
+    .articulation-box .ab-label {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }}
+    .articulation-box.weak-box .ab-label {{ color: var(--danger); }}
+    .articulation-box.strong-box .ab-label {{ color: var(--secondary); }}
+    .articulation-box .ab-quote {{ font-style: italic; color: #fff; }}
+    .concept-tags {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }}
+    .concept-tag {{
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(188, 140, 255, 0.1);
+      border: 1px solid rgba(188, 140, 255, 0.3);
+      color: var(--purple);
+    }}
+    @media (max-width: 600px) {{
+      .articulation-compare {{ grid-template-columns: 1fr; }}
+      .level-badge {{ flex-direction: column; text-align: center; }}
+    }}
     .footer {{ text-align: center; padding: 32px 0; font-size: 0.85rem; color: var(--muted); }}
     .footer a {{ color: var(--primary); text-decoration: none; }}
     .footer a:hover {{ text-decoration: underline; }}
@@ -384,6 +483,28 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       <div class="archetype-badge">
         <div class="name">{arch_name}</div>
         {f'<div class="desc">{arch_desc}</div>' if arch_desc else ''}
+      </div>
+'''
+
+    vibe_level = _a.get("vibe_coding_level") or {}
+    if vibe_level.get("level"):
+        vl_num = vibe_level.get("level", "?")
+        vl_name = vibe_level.get("name", "")
+        vl_evidence = vibe_level.get("evidence", "")
+        vl_strongest = vibe_level.get("strongest_skill", "")
+        vl_weakest = vibe_level.get("weakest_skill", "")
+        html += f'''
+      <div class="level-badge">
+        <div class="level-number">{vl_num}/6</div>
+        <div class="level-info">
+          <div class="level-name">Vibe Coding Level: {vl_name}</div>
+          <div class="level-evidence">{vl_evidence}</div>
+          <div class="level-skills">
+            Best: <span>{vl_strongest}</span>
+            &nbsp;&middot;&nbsp;
+            Needs work: <span class="weak">{vl_weakest}</span>
+          </div>
+        </div>
       </div>
 '''
 
@@ -444,7 +565,203 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       <p class="subtitle">Your coding galaxy — each star sized by message count</p>
       <div class="constellation-wrap" id="constellation"></div>
     </section>
+'''
 
+    # --- How You Ask (questioning behavior) ---
+    qb = _a.get("questioning_behavior") or {}
+    if qb.get("question_ratio") or qb.get("type_examples"):
+        html += '''
+    <section class="card">
+      <h2>How You Ask</h2>
+      <p class="subtitle">The quality of your questions reveals more than your statements.</p>
+'''
+        q_ratio = qb.get("question_ratio", "")
+        q_dominant = qb.get("dominant_type", "")
+        q_socratic = qb.get("socratic_usage", "")
+        q_evolution = qb.get("evolution", "")
+
+        html += '''      <div class="assessment-grid">
+'''
+        if q_ratio:
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Question Frequency</div>
+          <div class="ac-value">{q_ratio}</div>
+        </div>
+'''
+        if q_dominant:
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Dominant Type</div>
+          <div class="ac-value">{q_dominant.title()}</div>
+        </div>
+'''
+        if q_socratic:
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Socratic Questioning</div>
+          <div class="ac-value">{q_socratic.title()}</div>
+'''
+            q_socratic_ex = qb.get("socratic_example") or ""
+            if q_socratic_ex:
+                html += f'''          <div class="ac-detail" style="font-style: italic;">"{q_socratic_ex}"</div>
+'''
+            html += '''        </div>
+'''
+        html += '''      </div>
+'''
+
+        type_examples = qb.get("type_examples") or []
+        for te in type_examples[:4]:
+            te_type = te.get("type", "")
+            te_quote = te.get("quote", "")
+            te_bloom = te.get("bloom_level", "")
+            if te_quote:
+                html += f'''      <div class="q-example">
+        <div class="q-type">{te_type}</div>
+        <div class="q-quote">"{te_quote}"</div>
+        {f'<div class="q-bloom">Bloom\'s: {te_bloom}</div>' if te_bloom else ''}
+      </div>
+'''
+
+        if q_evolution:
+            html += f'''      <div class="narrative-text" style="margin-top: 16px;">{q_evolution}</div>
+'''
+
+        html += '''    </section>
+'''
+
+    # --- How You Think (critical thinking + problem articulation + vision) ---
+    ct = _a.get("critical_thinking") or {}
+    pa = _a.get("problem_articulation") or {}
+    vi = _a.get("vision_and_intent") or {}
+    has_thinking = ct.get("ct_level") or pa.get("level") or vi.get("orientation")
+
+    if has_thinking:
+        html += '''
+    <section class="card">
+      <h2>How You Think</h2>
+      <p class="subtitle">Critical thinking, problem articulation, and strategic orientation -- assessed against the Holistic CT Rubric.</p>
+'''
+        ct_level = ct.get("ct_level", "")
+        pa_level = pa.get("level", "")
+        vi_orient = vi.get("orientation", "")
+
+        html += '''      <div class="assessment-grid">
+'''
+        if ct_level:
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Critical Thinking (CT Rubric)</div>
+          <div class="ac-value">{ct_level.title()}</div>
+        </div>
+'''
+        if pa_level:
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Problem Articulation</div>
+          <div class="ac-value">{pa_level.title()}</div>
+        </div>
+'''
+        if vi_orient:
+            vi_desc = vi.get("description", "")
+            html += f'''        <div class="assessment-card">
+          <div class="ac-label">Strategic Orientation</div>
+          <div class="ac-value">{vi_orient.title()}</div>
+          {f'<div class="ac-detail">{vi_desc}</div>' if vi_desc else ''}
+        </div>
+'''
+        html += '''      </div>
+'''
+
+        # CT indicators
+        ct_indicators = [
+            ("Hypothesis Formation", ct.get("hypothesis_formation") or {}),
+            ("Alternative Consideration", ct.get("alternative_consideration") or {}),
+            ("Assumption Questioning", ct.get("assumption_questioning") or {}),
+            ("Evidence Evaluation", ct.get("evidence_evaluation") or {}),
+        ]
+        has_any_ct = any(ind.get("present") is not None for _, ind in ct_indicators)
+        if has_any_ct:
+            html += '''      <div class="ct-indicators">
+'''
+            for label, ind in ct_indicators:
+                present = ind.get("present", False)
+                mark_cls = "ct-check" if present else "ct-x"
+                mark_char = "&#10003;" if present else "&#10007;"
+                html += f'''        <div class="ct-ind"><span class="{mark_cls}">{mark_char}</span> {label}</div>
+'''
+            html += '''      </div>
+'''
+
+        # Problem articulation before/after
+        pa_weakest = pa.get("weakest_example", "")
+        pa_strongest = pa.get("strongest_example", "")
+        if pa_weakest or pa_strongest:
+            html += '''      <div class="articulation-compare">
+'''
+            if pa_weakest:
+                html += f'''        <div class="articulation-box weak-box">
+          <div class="ab-label">Weakest</div>
+          <div class="ab-quote">"{pa_weakest}"</div>
+        </div>
+'''
+            if pa_strongest:
+                html += f'''        <div class="articulation-box strong-box">
+          <div class="ab-label">Strongest</div>
+          <div class="ab-quote">"{pa_strongest}"</div>
+        </div>
+'''
+            html += '''      </div>
+'''
+        pa_growth = pa.get("growth", "")
+        if pa_growth:
+            html += f'''      <div class="narrative-text" style="margin-top: 12px;">{pa_growth}</div>
+'''
+
+        html += '''    </section>
+'''
+
+    # --- What You Know (domain expertise) ---
+    de = _a.get("domain_expertise") or {}
+    if de.get("concepts_demonstrated") or de.get("depth"):
+        html += '''
+    <section class="card">
+      <h2>What You Know</h2>
+      <p class="subtitle">Domain expertise demonstrated through actual usage, not just name-dropping.</p>
+'''
+        de_depth = de.get("depth", "")
+        de_growth = de.get("growth_evidence", "")
+        de_example = de.get("notable_example", "")
+
+        if de_depth:
+            html += f'''      <div class="assessment-grid">
+        <div class="assessment-card">
+          <div class="ac-label">Depth</div>
+          <div class="ac-value">{de_depth.title()}</div>
+        </div>
+      </div>
+'''
+
+        concepts = de.get("concepts_demonstrated") or []
+        if concepts:
+            html += '''      <div class="concept-tags">
+'''
+            for concept in concepts[:15]:
+                html += f'''        <div class="concept-tag">{concept}</div>
+'''
+            html += '''      </div>
+'''
+
+        if de_example:
+            html += f'''      <div class="q-example" style="margin-top: 16px;">
+        <div class="q-type">Best example</div>
+        <div class="q-quote">"{de_example}"</div>
+      </div>
+'''
+        if de_growth:
+            html += f'''      <div class="narrative-text" style="margin-top: 12px;">{de_growth}</div>
+'''
+
+        html += '''    </section>
+'''
+
+    html += '''
     <!-- 5. Growth Scorecard -->
     <section class="card">
       <h2>How You've Grown</h2>
