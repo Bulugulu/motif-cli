@@ -358,7 +358,7 @@ def analyze(prepare, project, budget, mode, stats, no_filter, preview):
 
         console.print(f"\n[green]Prepared analysis written to {len(written_paths)} files:[/green]")
         for p in written_paths:
-            label = "[bold cyan]→[/bold cyan]" if "instructions" in p.name else "  "
+            label = "[bold cyan]>>[/bold cyan]" if "instructions" in p.name else "  "
             console.print(f"  {label} [cyan]{p}[/cyan]")
         console.print(f"\nThe instructions file contains the analysis prompt and session index.")
         console.print(f"Data is split across {len(written_paths) - 1} batch file(s), ~20k tokens each.")
@@ -744,7 +744,7 @@ def update():
         return
 
     console.print(
-        f"[yellow]Update available:[/yellow] {result['current']} → [bold]{result['latest']}[/bold]\n"
+        f"[yellow]Update available:[/yellow] {result['current']} -> [bold]{result['latest']}[/bold]\n"
     )
 
     if click.confirm("Upgrade now?", default=True):
