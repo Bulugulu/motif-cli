@@ -5,6 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/motif-cli)](https://pypi.org/project/motif-cli/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Discord](https://img.shields.io/discord/1330698061461708892?color=5865F2&logo=discord&logoColor=white&label=Discord)](https://discord.gg/V7eNx5kVQT)
 
 ## ⚡ Live Dashboard — `motif live`
 
@@ -115,6 +116,8 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 | **[Gemini CLI](https://cloud.google.com/gemini)** | 📋 Planned | 📋 | 📋 |
 
 > Using a tool we don't support yet? [Open an issue](https://github.com/Bulugulu/motif-cli/issues) — or contribute an extractor.
+>
+> **Questions or feedback?** [Join our Discord](https://discord.gg/V7eNx5kVQT)
 
 ## 📖 Commands
 
@@ -166,13 +169,16 @@ motif list
 Prepare extracted data for pattern analysis. The output is a markdown file containing your conversation data and analysis instructions — your IDE's agent reads it and follows the embedded prompt.
 
 ```bash
-motif analyze --prepare                    # Analyze current project
-motif analyze --prepare --project myapp    # Specify project
-motif analyze --prepare --budget 50000     # Custom token budget
-motif analyze --prepare --preview          # Preview session relevance scores
-motif analyze --prepare --no-filter        # Skip relevance filtering
-motif analyze --prepare --stats            # Show pipeline stats only
+motif analyze --prepare                           # Analyze current project
+motif analyze --prepare --project myapp           # Specify project
+motif analyze --prepare --mode vibe-report        # Optimized for vibe report flow
+motif analyze --prepare --budget 50000            # Custom token budget
+motif analyze --prepare --preview                 # Preview session relevance scores
+motif analyze --prepare --no-filter               # Skip relevance filtering
+motif analyze --prepare --stats                   # Show pipeline stats only
 ```
+
+Modes: `full` (default) for Personalize AI analysis, `vibe-report` for qualitative vibe report (strips system noise, instructions-first layout, split into agent-friendly batches).
 
 ### `motif rules`
 
@@ -210,22 +216,31 @@ Self-contained HTML file (dark theme, Chart.js visualizations). Open in any brow
 
 | Section | What it shows |
 |---------|--------------|
-| Hero Stats | Total messages, sessions, projects, tool calls, autonomy ratio, output density, date range |
+| Hero Stats | Total messages, sessions, projects, tool calls, autonomy ratio, output density, vibe coding level, date range |
 | Agent Concurrency | Peak and average concurrent sessions, weekly time-series chart |
 | Autonomy Ratio | Agent actions per human message, tracked over time |
 | Output Density | Agent-authored content per prompt, tracked over time |
+| How You Ask | Questioning behavior — question types mapped to Bloom's Taxonomy, Socratic usage |
+| How You Think | Critical thinking rubric level, problem articulation spectrum, vision/intent |
+| What You Know | Domain expertise — concepts demonstrated, depth, growth over time |
+| Your Superpowers | Top strengths identified from conversation patterns |
 | Project Constellation | Galaxy visualization of all projects, sized by message count |
 | Growth Scorecard | First 25% vs last 25% of sessions — specification depth, autonomy, session depth, tool density, output density |
+| How You Talk to AI | Communication style — brevity, feedback patterns, correction style |
+| Greatest Hits | Notable moments with actual quotes from your conversations |
+| Room to Grow | Blind spots and improvement opportunities |
 | Personality | Frustration detection with actual quotes, catchphrases, fun stats |
+
+Qualitative sections (How You Ask, How You Think, What You Know, Superpowers, Greatest Hits, etc.) require running `motif analyze --prepare --mode vibe-report` first. Without analysis, the report shows all quantitative metrics.
 
 See [docs/METRICS.md](docs/METRICS.md) for full metric documentation.
 
 ### `motif setup`
 
-Install the `motif-analyze` skill for agent-driven analysis. Auto-detects your tools and installs to the right locations:
+Install the Motif skill for agent-driven analysis. Auto-detects your tools and installs to the right locations:
 
-- **Cursor:** `~/.cursor/skills/motif-analyze/SKILL.md` (auto-loaded by trigger phrases)
-- **Claude Code:** `~/.claude/commands/motif.md` (use `/motif` to load)
+- **Cursor:** `~/.cursor/skills/motif-analyze/SKILL.md` (auto-loaded by trigger phrases like "vibe report", "motif", "personalize my AI")
+- **Claude Code:** `~/.claude/commands/motif.md` (type `/motif` in any conversation to load)
 
 ```bash
 motif setup
