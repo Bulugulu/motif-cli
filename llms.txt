@@ -26,7 +26,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 - `motif live` — Real-time AI productivity dashboard (TUI). Tracks AIPM, concurrency, per-agent efficiency. Flags: `--compact`, `--summary`, `--history`, `-i <seconds>`
 - `motif list` — Show extracted projects with message counts
 - `motif vibe-report` — Generate a shareable HTML vibe report ("Spotify Wrapped" for vibe coding) from extracted conversations. Self-contained HTML with dark theme, Chart.js charts. Sections: hero stats, agent concurrency (sweep-line algorithm), autonomy ratio timeline, project constellation, growth scorecard, personality/catchphrases. Flags: `--name`, `--output`, `--analysis`
-- `motif analyze --prepare` — Prepare data for agent-driven analysis
+- `motif analyze --prepare` — Prepare data for agent-driven analysis. Flags: `--mode` (`full` for Personalize AI, `vibe-report` for qualitative vibe report — strips system noise, instructions-first layout), `--budget`, `--project`, `--no-filter`, `--preview`, `--stats`
 - `motif rules <analysis.json>` — Generate config files from analysis. Motif never writes to the user's CLAUDE.md — it generates a reference at `~/.motif/generated/CLAUDE.md` for the host agent to read and merge. `--apply` deploys skill files only. Flags: `--dry-run`, `--apply`, `-p`
 - `motif report <analysis.json>` — Generate summary report
 - `motif setup` — Install skill for agent integration (Cursor skill + Claude Code `/motif` command)

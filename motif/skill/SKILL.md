@@ -1,6 +1,6 @@
 ---
 name: motif-analyze
-description: Run Motif to generate your vibe report, launch the live dashboard, or personalize your CLAUDE.md and skills. Use when the user says "motif", "run motif", "vibe report", "generate my report", "motif live", "start the dashboard", "analyze my coding patterns", "personalize my AI", "generate rules for me", or "motif analyze".
+description: Run Motif — your AI coding companion. Use when the user mentions "motif" in any context. Covers vibe reports, live dashboard, and AI personalization.
 ---
 
 # Motif
@@ -9,11 +9,11 @@ description: Run Motif to generate your vibe report, launch the live dashboard, 
 
 ## When to Use
 
-- "motif" / "run motif"
+Any mention of "motif" by the user should trigger this skill. Examples:
+- "motif" / "run motif" / "motif analyze"
 - "vibe report" / "generate my report" / "generate my vibe report"
 - "motif live" / "start the dashboard" / "live dashboard"
-- "analyze my coding patterns" / "personalize my AI" / "generate rules for me"
-- "motif analyze"
+- "personalize my AI" / "generate rules for me" / "update my CLAUDE.md"
 
 ---
 
@@ -43,7 +43,11 @@ If an update is available, the command will prompt the user to upgrade. **Let th
 
 **Ask the user what they'd like to do BEFORE extracting or running anything else.** Extraction can take a while, and some paths (Live Dashboard) don't need it at all.
 
-If the user already specified what they want (e.g., "generate my vibe report"), skip asking and go directly to the corresponding path.
+**Routing rules:**
+- If the user said "vibe report", "generate my report", or "my vibe report" -> go directly to **Path A**
+- If the user said "motif live", "live dashboard", or "start the dashboard" -> go directly to **Path B**
+- If the user said "personalize my AI", "generate rules", or "update my CLAUDE.md" -> go directly to **Path C**
+- For anything else (including just "motif", "run motif", "motif analyze", "analyze my coding") -> **present the menu below**
 
 Present these options:
 
@@ -93,66 +97,30 @@ motif extract all
 
 #### A2. Prepare Data for Qualitative Analysis
 
-Run the analysis pipeline with a small budget (qualitative analysis needs less data than full skills/rules analysis):
+Run the analysis pipeline in vibe-report mode. This strips system noise, places analysis instructions at the top, and uses the vibe-report-specific prompt:
 
 ```bash
-motif analyze --prepare --budget 20000
+motif analyze --prepare --mode vibe-report
 ```
 
 The command prints the path to the prepared output file. **Read that file** using the Read tool.
 
-**If 0 scoped messages or fewer than 10 user messages:** Skip qualitative analysis — proceed directly to A4 and generate the report without it. Tell the user: "Not enough conversation history for qualitative analysis. Your report will include all quantitative metrics. Come back after more conversations for the full experience."
+**If 0 scoped messages or fewer than 10 user messages:** Skip qualitative analysis -- proceed directly to A4 and generate the report without it. Tell the user: "Not enough conversation history for qualitative analysis. Your report will include all quantitative metrics. Come back after more conversations for the full experience."
 
 #### A3. Run Qualitative Analysis
 
-The prepared output file contains conversation data and analysis instructions at the bottom. **Ignore the default analysis instructions** (those are for the full Personalize AI flow). Instead, follow these instructions:
+The prepared file contains vibe report analysis instructions at the top, followed by conversation data. **Follow the instructions in the file** -- they specify the exact JSON schema, guidelines, and what to look for.
 
-Analyze the conversation data and produce a JSON with this exact structure:
+**Save the JSON** to `~/.motif/analysis/vibe-report-analysis-{YYYY-MM-DD}-{HHMM}.json` (include hours and minutes to avoid same-day collisions).
 
-```json
-{
-  "archetype": {
-    "name": "2-4 word title (e.g., 'The Architect')",
-    "description": "1-2 sentences explaining the archetype"
-  },
-  "superpowers": [
-    {
-      "name": "Short label (e.g., 'Decomposition')",
-      "description": "1 sentence with evidence from conversations"
-    }
-  ],
-  "communication_style": "2-3 punchy sentences. How they talk to AI.",
-  "growth_narrative": "3-5 sentences. How they've evolved from early to recent sessions.",
-  "notable_moments": [
-    {
-      "quote": "Exact or near-exact user quote (short, punchy)",
-      "context": "1 sentence explaining when/why"
-    }
-  ],
-  "blind_spots": [
-    {
-      "name": "Short label",
-      "description": "1 sentence, framed as a growth opportunity"
-    }
-  ]
-}
-```
-
-**Guidelines:**
-- **Superpowers**: 2-3. Genuinely impressive, with evidence. Not generic compliments.
-- **Notable moments**: 2-3 quotes that are funny, revealing, or show personality. Use actual words.
-- **Blind spots**: 1-2. Honest but constructive.
-- **Be specific**: "Leads with desired outcome in 1 sentence, adds constraints as bullets" beats "Terse communicator."
-- **Keep it real**: This is a shareable report. Honest and specific > flattering and generic.
-
-**Save the JSON** to `~/.motif/analysis/vibe-report-analysis-{YYYY-MM-DD}.json`.
-
-**In Cursor:** You can delegate this analysis to a subagent (fast model) with the prepared data and the instructions above.
+**In Cursor:** You can delegate this analysis to a subagent (fast model) with the prepared data and the instructions from the file.
 **In Claude Code:** Perform the analysis inline.
 
 #### A4. Generate the Report
 
-The vibe report uses all extracted projects by default — no project selection needed.
+The vibe report uses all extracted projects by default -- no project selection needed.
+
+**Get the user's name:** Run `git config user.name`. If it returns empty or looks like a machine name, ask the user for their preferred name. Fall back to "Vibe Coder" if they decline.
 
 Build the command based on what's available:
 

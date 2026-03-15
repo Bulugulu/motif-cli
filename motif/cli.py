@@ -221,13 +221,19 @@ def _resolve_project(project_arg, console):
 @click.option("--prepare", is_flag=True, required=True, help="Prepare analysis data + prompt for the host agent")
 @click.option("--project", "-p", default=None, help="Project to analyze (default: current directory name)")
 @click.option("--budget", "-b", default=60000, type=int, help="Token budget for prepared output (default: 60000)")
+@click.option("--mode", "-m", default="full", type=click.Choice(["full", "vibe-report"]), help="Analysis mode: 'full' for Personalize AI, 'vibe-report' for qualitative vibe report")
 @click.option("--stats", is_flag=True, help="Show pipeline stats only, don't write output")
 @click.option("--no-filter", is_flag=True, help="Skip relevance filtering (include all project-scoped conversations)")
 @click.option("--preview", is_flag=True, help="Show session relevance scores without running full analysis")
-def analyze(prepare, project, budget, stats, no_filter, preview):
+def analyze(prepare, project, budget, mode, stats, no_filter, preview):
     """Analyze extracted conversations for patterns.
 
-    Usage: motif analyze --prepare [--project NAME] [--budget N] [--stats]
+    Usage: motif analyze --prepare [--project NAME] [--budget N] [--mode MODE]
+
+    Modes:
+      full         Full Personalize AI analysis (skills, rules, style). Default.
+      vibe-report  Qualitative analysis for the shareable vibe report.
+                   Strips system noise, puts instructions first.
 
     The pipeline filters misattributed conversations by checking whether
     file paths in each session match the target project. Use --no-filter
@@ -289,11 +295,13 @@ def analyze(prepare, project, budget, stats, no_filter, preview):
             console.print(f"\nUse [cyan]--no-filter[/cyan] to keep all sessions.")
         return
 
-    console.print(f"Preparing analysis for [bold]{project}[/bold] (budget: {budget} tokens)...")
+    mode_label = "vibe report" if mode == "vibe-report" else "full"
+    console.print(f"Preparing analysis for [bold]{project}[/bold] (mode: {mode_label}, budget: {budget} tokens)...")
 
     output, pipeline_stats = prepare_analysis(
         all_messages, project, budget,
         skip_relevance_filter=no_filter,
+        mode=mode,
     )
 
     # Show stats
@@ -313,6 +321,8 @@ def analyze(prepare, project, budget, stats, no_filter, preview):
     console.print(f"  After relevance filter: {pipeline_stats['relevance_count']}")
 
     console.print(f"  After noise filter: {pipeline_stats['filtered_count']} (dropped {pipeline_stats['dropped_noise']})")
+    if pipeline_stats.get("system_noise_stripped_tokens"):
+        console.print(f"  System noise stripped: ~{pipeline_stats['system_noise_stripped_tokens']} tokens")
     console.print(f"  Final messages: {pipeline_stats['final_count']}")
     console.print(f"  Estimated tokens: {pipeline_stats['estimated_tokens']}")
     if pipeline_stats.get("budget_applied"):
