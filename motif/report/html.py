@@ -617,7 +617,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
                 html += f'''      <div class="q-example">
         <div class="q-type">{te_type}</div>
         <div class="q-quote">"{te_quote}"</div>
-        {f'<div class="q-bloom">Bloom\'s: {te_bloom}</div>' if te_bloom else ''}
+        {('<div class="q-bloom">Bloom' + "'" + 's: ' + te_bloom + '</div>') if te_bloom else ''}
       </div>
 '''
 
