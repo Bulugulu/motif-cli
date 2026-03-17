@@ -144,23 +144,14 @@ def run_live(
             if not idle_triggered:
                 break
 
-            # Idle timeout — show summary and prompt
+            # Idle timeout — auto-save and start new session
             final = engine.compute()
             console.print()
             console.print(render_summary(final))
             save_session(final)
-            console.print(f"[dim]Session saved to ~/.motif/sessions/[/dim]\n")
-
-            try:
-                answer = console.input("[bold]Start new session?[/bold] [dim]\\[Y/n][/dim] ").strip().lower()
-            except (KeyboardInterrupt, EOFError):
-                answer = "n"
-
-            if answer in ("", "y", "yes"):
-                engine.reset()
-                console.print("\n[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 new session started, watching for AI activity...\n")
-            else:
-                running = False
+            engine.reset()
+            console.print(f"[dim]Session auto-saved to ~/.motif/sessions/[/dim]")
+            console.print("\n[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 new session started, watching for AI activity...\n")
 
     except KeyboardInterrupt:
         pass
