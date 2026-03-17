@@ -147,3 +147,31 @@ def render_summary(metrics: LiveMetrics) -> Panel:
         border_style="bright_blue",
         padding=(1, 1),
     )
+
+
+def render_idle(metrics: LiveMetrics) -> Panel:
+    """Render the idle state: previous session summary + waiting indicator."""
+    lines = []
+
+    lines.append(f"  Duration:          {metrics.session_duration_str}")
+    lines.append(f"  AI Output:         {format_tokens(metrics.session_tokens)} tokens")
+    lines.append(f"  Avg AIPM:          {format_tokens(metrics.session_aipm)}")
+    lines.append(f"  Peak AIPM:         {format_tokens(metrics.peak_aipm)}")
+    lines.append(f"  Avg Concurrency:   {metrics.avg_concurrency:.1f}")
+    lines.append(f"  Peak Concurrency:  {metrics.peak_concurrency}")
+    lines.append(f"  Prompts Sent:      {metrics.session_prompts}")
+
+    if metrics.session_prompts > 0:
+        leverage = metrics.session_tokens / metrics.session_prompts
+        lines.append(f"  Leverage:          {format_tokens(leverage)} tokens/prompt")
+
+    lines.append("")
+    lines.append("  [dim]Session saved. Waiting for new activity...[/dim]")
+
+    body = "\n".join(lines)
+    return Panel(
+        body,
+        title="[bold]SESSION COMPLETE \u2014 IDLE[/bold]",
+        border_style="dim",
+        padding=(1, 1),
+    )

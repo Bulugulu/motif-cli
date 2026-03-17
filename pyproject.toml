@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "motif-cli"
-version = "0.7.5"
+version = "0.7.6"
 description = "Real-time dashboard and assessment report for your AI coding sessions. Understand your AI engineering skills and personality."
 readme = "README.md"
 license = {text = "Apache-2.0"}

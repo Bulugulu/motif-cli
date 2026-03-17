@@ -114,17 +114,17 @@ class MetricsEngine:
                     self._token_events.append((msg_time, delta, msg.session_id))
                     if msg_time >= self.session_start:
                         self.session_tokens += delta
+                        had_activity = True
 
                 self._session_last_ai[msg.session_id] = max(
                     self._session_last_ai.get(msg.session_id, 0), msg_time
                 )
-                had_activity = True
 
             if msg.type == "user":
                 self._prompt_times.append(msg_time)
                 if msg_time >= self.session_start:
                     self.session_prompts += 1
-                had_activity = True
+                    had_activity = True
 
         if had_activity:
             self.last_activity_timestamp = time.time()

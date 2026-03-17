@@ -11,7 +11,7 @@ from rich.live import Live
 
 from .poller import ClaudeCodePoller
 from .metrics import MetricsEngine, LiveMetrics
-from .display import render_full, render_compact, render_summary
+from .display import render_full, render_compact, render_summary, render_idle
 
 
 def _get_sessions_dir() -> Path:
@@ -144,14 +144,21 @@ def run_live(
             if not idle_triggered:
                 break
 
-            # Idle timeout — auto-save and start new session
+            # Idle timeout — save session and enter idle state
             final = engine.compute()
-            console.print()
-            console.print(render_summary(final))
             save_session(final)
+            idle_panel = render_idle(final)
             engine.reset()
-            console.print(f"[dim]Session auto-saved to ~/.motif/sessions/[/dim]")
-            console.print("\n[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 new session started, watching for AI activity...\n")
+
+            # Show idle panel until new activity arrives
+            with Live(idle_panel, console=console, refresh_per_second=1, vertical_overflow="crop") as live:
+                while running:
+                    new_messages = poller.poll()
+                    if new_messages:
+                        engine.ingest(new_messages)
+                        if engine.session_tokens > 0:
+                            break  # real activity — back to live dashboard
+                    time.sleep(poll_interval)
 
     except KeyboardInterrupt:
         pass
