@@ -8,7 +8,7 @@ what to look for when analyzing conversation data.
 
 def get_prompt_version() -> str:
     """Return the version string for this prompt."""
-    return "0.4.0"
+    return "0.5.0"
 
 
 def get_analysis_prompt() -> str:
@@ -169,6 +169,8 @@ Read the conversation data above and produce a JSON following the schema below.
 
 **Banned words/phrases:** impressive, remarkable, powerful, game-changer, next-level, crushing it, force to be reckoned with, powerhouse, showcases, demonstrates mastery, truly, incredible, a testament to. If you catch yourself reaching for a superlative, delete it and state the fact instead.
 
+**Voice:** Address the user directly in second person. "You do X" not "the user does X." "You say..." not "says..." Frame everything as a personal assessment directed at the reader.
+
 ---
 
 ## Assessment Frameworks
@@ -244,7 +246,7 @@ Respond with valid JSON in this structure:
 ```json
 {
   "archetype": {
-    "name": "string -- 2-4 word title",
+    "name": "string -- 2-4 word title (this will be displayed as 'Your Archetype: {name}')",
     "description": "string -- 1-2 sentences, Pratchett tone, grounded in evidence"
   },
 
@@ -296,8 +298,13 @@ Respond with valid JSON in this structure:
   },
 
   "domain_expertise": {
-    "concepts_demonstrated": ["list of specific concepts the user shows real understanding of -- not just mentions, actual understanding"],
-    "depth": "surface | working | deep",
+    "skills": [
+      {
+        "name": "string -- 2-4 words max, one concept per entry (e.g. 'context engineering', NOT 'context engineering and multi-agent workflows')",
+        "depth": "surface | working | deep",
+        "evidence": "string -- 1 sentence showing how this skill was demonstrated"
+      }
+    ],
     "growth_evidence": "string -- evidence of growing expertise, or 'insufficient data'",
     "notable_example": "string -- best example of domain knowledge in action"
   },
@@ -355,12 +362,15 @@ When assessing `problem_articulation.level`:
 - **Superpowers**: 2-3 max. These must be genuinely distinctive, not generic compliments. "Good at problem solving" is useless. "Runs 5 parallel agents and catches when agent #3 silently diverges from the spec" is useful.
 - **Notable moments**: 2-3 quotes that are funny, revealing, or show personality. Use the user's actual words.
 - **Blind spots**: 1-2. Be honest. Name the problem directly. Pratchett framing softens the blow without hiding the truth.
-- **Growth narrative**: Use Judgment vs. Reckoning as the interpretive frame. If early vs. late sessions show evolution, describe the shift. If data is limited, say so.
+- **Growth narrative**: Use Judgment vs. Reckoning as the interpretive frame (Judgment = context, values, navigating ambiguity — what humans do; Reckoning = pattern matching, data processing — what AI does). If early vs. late sessions show evolution, describe the shift. If data is limited, say so.
 - **Questioning behavior**: This is one of the most revealing signals. The quality of someone's questions tells you more about their thinking than the quality of their statements. Include 2-4 examples across different types.
 - **Vibe coding level**: Place on the 6-level rubric. Cite the specific indicators that justify the placement. Name strongest and weakest sub-skills.
 - **Critical thinking**: Map to the 4-level CT rubric. For each sub-indicator (hypothesis, alternatives, assumptions, evidence), mark present/absent with an example quote.
-- **Domain expertise**: Distinguish between mentioning a concept and demonstrating understanding of it.
+- **Domain expertise**: Each skill must be a separate entry, 2-4 words max. Don't concatenate related concepts — "context engineering" and "multi-agent orchestration" are separate skills. Assess depth per skill, not globally. Distinguish between mentioning a concept and demonstrating understanding of it.
 - **Vision**: Does the user articulate where they want things to go, or just react to what's in front of them?
+- **Weakest example**: For `problem_articulation.weakest_example`, choose an example where the user gave an ambiguous or unclear request about a complex topic — not just a concise command. A short, targeted request like "use /motif" is efficient delegation, not weak articulation. Weak articulation is when the user's intent is genuinely unclear.
+- **Framework explanations**: Assume the reader doesn't know these frameworks. When referencing Bloom's, the CT Rubric, Judgment vs. Reckoning, or the Vibe Coding Levels, briefly explain the concept before applying it. E.g., "You exercise strategic critical thinking — meaning you evaluate tradeoffs and consider alternatives rather than accepting the first solution — by contextualizing work vis-a-vis a long-term vision." Don't just name-drop framework levels.
+- **Conciseness**: Keep all descriptions tight. Organize multi-point observations as bullet lists, not run-on paragraphs. Skills should be a few words each. Superpowers should be 1 short sentence.
 
 ## What NOT to Do
 

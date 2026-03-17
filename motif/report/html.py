@@ -481,7 +481,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         arch_desc = archetype.get("description", "")
         html += f'''
       <div class="archetype-badge">
-        <div class="name">{arch_name}</div>
+        <div class="name">Your Archetype: {arch_name}</div>
         {f'<div class="desc">{arch_desc}</div>' if arch_desc else ''}
       </div>
 '''
@@ -497,7 +497,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       <div class="level-badge">
         <div class="level-number">{vl_num}/6</div>
         <div class="level-info">
-          <div class="level-name">Vibe Coding Level: {vl_name}</div>
+          <div class="level-name">Vibe Coding Level: {vl_name} <span style="font-weight: 400; font-size: 0.8em;">(of 6, from Novice to Expert)</span></div>
           <div class="level-evidence">{vl_evidence}</div>
           <div class="level-skills">
             Best: <span>{vl_strongest}</span>
@@ -573,7 +573,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         html += '''
     <section class="card">
       <h2>How You Ask</h2>
-      <p class="subtitle">The quality of your questions reveals more than your statements.</p>
+      <p class="subtitle">The quality of your questions reveals more than your statements. We use <a href="#glossary" style="color: var(--primary);">Bloom's Taxonomy</a> to assess the cognitive level of your prompts.</p>
 '''
         q_ratio = qb.get("question_ratio", "")
         q_dominant = qb.get("dominant_type", "")
@@ -596,7 +596,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
 '''
         if q_socratic:
             html += f'''        <div class="assessment-card">
-          <div class="ac-label">Socratic Questioning</div>
+          <div class="ac-label">Socratic Questioning <span style="font-weight: 400; font-size: 0.8em;">(guiding AI through questions rather than direct instructions)</span></div>
           <div class="ac-value">{q_socratic.title()}</div>
 '''
             q_socratic_ex = qb.get("socratic_example") or ""
@@ -638,7 +638,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         html += '''
     <section class="card">
       <h2>How You Think</h2>
-      <p class="subtitle">Critical thinking, problem articulation, and strategic orientation -- assessed against the Holistic CT Rubric.</p>
+      <p class="subtitle">Do you accept the first solution, or question assumptions and weigh alternatives? Assessed against the <a href="#glossary" style="color: var(--primary);">Holistic Critical Thinking Rubric</a>.</p>
 '''
         ct_level = ct.get("ct_level", "")
         pa_level = pa.get("level", "")
@@ -719,31 +719,31 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
 
     # --- What You Know (domain expertise) ---
     de = _a.get("domain_expertise") or {}
-    if de.get("concepts_demonstrated") or de.get("depth"):
+    de_skills = de.get("skills") or []
+    # Backward compat: fall back to old concepts_demonstrated format
+    if not de_skills and de.get("concepts_demonstrated"):
+        de_skills = [{"name": c, "depth": de.get("depth", ""), "evidence": ""} for c in de.get("concepts_demonstrated", [])]
+    if de_skills or de.get("depth"):
         html += '''
     <section class="card">
       <h2>What You Know</h2>
-      <p class="subtitle">Domain expertise demonstrated through actual usage, not just name-dropping.</p>
+      <p class="subtitle">Domain expertise demonstrated through actual usage, not just name-dropping. Depth rated per skill.</p>
 '''
-        de_depth = de.get("depth", "")
         de_growth = de.get("growth_evidence", "")
         de_example = de.get("notable_example", "")
 
-        if de_depth:
-            html += f'''      <div class="assessment-grid">
-        <div class="assessment-card">
-          <div class="ac-label">Depth</div>
-          <div class="ac-value">{de_depth.title()}</div>
-        </div>
-      </div>
-'''
-
-        concepts = de.get("concepts_demonstrated") or []
-        if concepts:
+        depth_colors = {"deep": "var(--secondary)", "working": "var(--primary)", "surface": "var(--warning)"}
+        if de_skills:
             html += '''      <div class="concept-tags">
 '''
-            for concept in concepts[:15]:
-                html += f'''        <div class="concept-tag">{concept}</div>
+            for skill in de_skills[:15]:
+                s_name = skill.get("name", "") if isinstance(skill, dict) else str(skill)
+                s_depth = skill.get("depth", "") if isinstance(skill, dict) else ""
+                s_evidence = skill.get("evidence", "") if isinstance(skill, dict) else ""
+                depth_color = depth_colors.get(s_depth.lower(), "var(--muted)")
+                depth_label = s_depth.title() if s_depth else ""
+                tooltip = f' title="{s_evidence}"' if s_evidence else ''
+                html += f'''        <div class="concept-tag" style="border-color: {depth_color}; position: relative;"{tooltip}>{s_name}{f' <span style="font-size: 0.7em; color: {depth_color}; margin-left: 4px;">({depth_label})</span>' if depth_label else ''}</div>
 '''
             html += '''      </div>
 '''
@@ -839,6 +839,36 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       </div>
 '''
         html += '''    </section>
+'''
+
+    html += '''
+    <!-- Glossary -->
+    <section class="card" id="glossary">
+      <h2>Framework Glossary</h2>
+      <p class="subtitle">The assessment frameworks referenced in this report</p>
+      <div style="display: grid; gap: 16px;">
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Bloom's Taxonomy</div>
+          <div style="font-size: 0.9rem;">A hierarchy of cognitive skills from basic recall (Level 1) to creative synthesis (Level 6). Higher-level prompts — like designing systems or evaluating tradeoffs — indicate stronger AI collaboration skills.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Vibe Coding Levels (1-6)</div>
+          <div style="font-size: 0.9rem;">Our rubric for AI-assisted coding proficiency: (1) Novice — "fix this"; (2) Beginner — some context; (3) Intermediate — uses @mentions, tests; (4) Proficient — context engineering, plans ahead; (5) Advanced — multi-agent, blast radius thinking; (6) Expert — Socratic questioning, builds reusable frameworks.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Socratic Questioning</div>
+          <div style="font-size: 0.9rem;">Guiding the AI through carefully chosen questions rather than direct instructions — e.g., "What would happen if we removed X?" instead of "Remove X." Forces the AI to reason through consequences, often producing better solutions.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Judgment vs. Reckoning</div>
+          <div style="font-size: 0.9rem;">Reckoning = pattern recognition and data processing (what AI does well). Judgment = context, values, and navigating ambiguity (what humans must do). The best vibe coders offload reckoning to AI while retaining judgment.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Holistic Critical Thinking Rubric</div>
+          <div style="font-size: 0.9rem;">Rates thinking from Weak (accepts first solution, no alternatives) to Strong (questions assumptions, evaluates multiple approaches, evidence-based reasoning). Applied to how you evaluate AI output and make decisions.</div>
+        </div>
+      </div>
+    </section>
 '''
 
     html += '''
