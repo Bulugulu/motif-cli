@@ -143,6 +143,8 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
     growth_scorecard = m["growth_scorecard"]
     projects = m["projects"]
     personality = m["personality"]
+    pennebaker = metrics.get("pennebaker") or {}
+    epistemic = metrics.get("epistemic") or {}
 
     date_range = _format_date_range(hero["date_range_start"], hero["date_range_end"])
     autonomy_str = f"{hero['autonomy_ratio']:.1f}x" if hero["autonomy_ratio"] else "0x"
@@ -432,6 +434,82 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       .articulation-compare {{ grid-template-columns: 1fr; }}
       .level-badge {{ flex-direction: column; text-align: center; }}
     }}
+    .liwc-scores {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .liwc-score {{
+      background: rgba(88, 166, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }}
+    .liwc-score .score-value {{ font-size: 1.75rem; font-weight: 700; color: var(--primary); }}
+    .liwc-score .score-label {{ font-size: 0.8rem; color: var(--muted); margin-top: 4px; }}
+    .liwc-score .score-max {{ font-size: 0.7rem; color: var(--muted); }}
+    .pronoun-bars {{ margin-top: 20px; }}
+    .pronoun-bar {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }}
+    .pronoun-bar .pb-label {{ width: 32px; text-align: right; color: var(--muted); font-weight: 600; }}
+    .pronoun-bar .pb-track {{ flex: 1; height: 24px; background: rgba(88, 166, 255, 0.06); border-radius: 4px; overflow: hidden; }}
+    .pronoun-bar .pb-fill {{ height: 100%; border-radius: 4px; }}
+    .pronoun-bar .pb-rate {{ width: 80px; color: var(--muted); font-size: 0.8rem; }}
+    .epistemic-hero {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .ratio-display {{
+      background: rgba(88, 166, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }}
+    .ratio-display .ratio-value {{ font-size: 2rem; font-weight: 700; color: var(--primary); }}
+    .ratio-display .ratio-label {{ font-size: 0.85rem; color: var(--muted); margin-top: 4px; }}
+    .ratio-display .ratio-context {{ font-size: 0.75rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }}
+    .epistemic-type-badge {{
+      background: rgba(188, 140, 255, 0.08);
+      border: 2px solid var(--purple);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }}
+    .epistemic-type-badge .et-label {{ font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }}
+    .epistemic-type-badge .et-name {{ font-size: 1.25rem; font-weight: 600; color: var(--purple); margin-top: 4px; }}
+    .epistemic-type-badge .et-desc {{ font-size: 0.85rem; color: var(--muted); margin-top: 8px; }}
+    .domain-compare {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }}
+    .domain-card {{
+      background: rgba(88, 166, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }}
+    .domain-card .dc-name {{ font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }}
+    .domain-card .dc-ratio {{ font-size: 1.5rem; font-weight: 700; margin-top: 4px; }}
+    .domain-card .dc-label {{ font-size: 0.75rem; margin-top: 4px; }}
+    @media (max-width: 600px) {{
+      .epistemic-hero {{ grid-template-columns: 1fr; }}
+      .domain-compare {{ grid-template-columns: 1fr; }}
+    }}
     .footer {{ text-align: center; padding: 32px 0; font-size: 0.85rem; color: var(--muted); }}
     .footer a {{ color: var(--primary); text-decoration: none; }}
     .footer a:hover {{ text-decoration: underline; }}
@@ -532,6 +610,153 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
 '''
         html += '''      </div>
     </section>
+'''
+
+    # --- How You Use Language (Pennebaker / LIWC) ---
+    if pennebaker.get("total_words", 0) >= 1000:
+        p_clout = pennebaker.get("clout", 0)
+        p_analytic = pennebaker.get("analytic", 0)
+        p_auth = pennebaker.get("authenticity", 0)
+        p_tone = pennebaker.get("emotional_tone", 50)
+        p_i = pennebaker.get("pronoun_i_rate", 0)
+        p_we = pennebaker.get("pronoun_we_rate", 0)
+        p_you = pennebaker.get("pronoun_you_rate", 0)
+        max_pronoun = max(p_i, p_we, p_you, 1)
+
+        html += f'''
+    <!-- How You Use Language -->
+    <section class="card">
+      <h2>How You Use Language</h2>
+      <p class="subtitle">Function word analysis based on <a href="https://en.wikipedia.org/wiki/Linguistic_Inquiry_and_Word_Count" target="_blank" rel="noopener" style="color: var(--primary);">Pennebaker's LIWC research</a> — the words you use without conscious control reveal your thinking style. Scores are approximate.</p>
+      <div class="liwc-scores">
+        <div class="liwc-score">
+          <div class="score-value">{p_clout}</div>
+          <div class="score-max">/100</div>
+          <div class="score-label">Clout</div>
+        </div>
+        <div class="liwc-score">
+          <div class="score-value">{p_analytic}</div>
+          <div class="score-max">/100</div>
+          <div class="score-label">Analytic</div>
+        </div>
+        <div class="liwc-score">
+          <div class="score-value">{p_auth}</div>
+          <div class="score-max">/100</div>
+          <div class="score-label">Authenticity</div>
+        </div>
+        <div class="liwc-score">
+          <div class="score-value">{p_tone}</div>
+          <div class="score-max">/100</div>
+          <div class="score-label">Emotional Tone</div>
+        </div>
+      </div>
+      <div class="pronoun-bars">
+        <div class="pronoun-bar">
+          <div class="pb-label">I</div>
+          <div class="pb-track"><div class="pb-fill" style="width: {min(100, p_i / max_pronoun * 100):.0f}%; background: var(--primary);"></div></div>
+          <div class="pb-rate">{p_i}/1k words</div>
+        </div>
+        <div class="pronoun-bar">
+          <div class="pb-label">We</div>
+          <div class="pb-track"><div class="pb-fill" style="width: {min(100, p_we / max_pronoun * 100):.0f}%; background: var(--secondary);"></div></div>
+          <div class="pb-rate">{p_we}/1k words</div>
+        </div>
+        <div class="pronoun-bar">
+          <div class="pb-label">You</div>
+          <div class="pb-track"><div class="pb-fill" style="width: {min(100, p_you / max_pronoun * 100):.0f}%; background: var(--purple);"></div></div>
+          <div class="pb-rate">{p_you}/1k words</div>
+        </div>
+      </div>
+'''
+        # LLM-interpreted insights
+        ling = _a.get("linguistic_identity") or {}
+        p_interp = ling.get("pennebaker_interpretation", "")
+        p_surprise = ling.get("most_surprising_finding", "")
+        p_pronoun = ling.get("pronoun_insight", "")
+
+        if p_interp:
+            html += f'''      <div class="narrative-text" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">{p_interp}</div>
+'''
+        if p_pronoun:
+            html += f'''      <div class="narrative-text" style="margin-top: 8px;"><strong>Pronoun insight:</strong> {p_pronoun}</div>
+'''
+        if p_surprise:
+            html += f'''      <div class="callout" style="margin-top: 16px;"><strong>Most surprising finding:</strong> {p_surprise}</div>
+'''
+        html += '''    </section>
+'''
+
+    # --- How Certain You Are (Epistemic Stance) ---
+    if epistemic.get("hedge_count", 0) + epistemic.get("booster_count", 0) >= 10:
+        e_ratio = epistemic.get("hedge_to_boost_ratio", 0)
+        e_bug = epistemic.get("bug_report_hedge_ratio")
+        e_strat = epistemic.get("strategic_hedge_ratio")
+
+        # LLM-interpreted insights
+        es = _a.get("epistemic_stance") or {}
+        e_type = es.get("epistemic_type", "")
+        e_type_desc = es.get("epistemic_type_description", "")
+        e_interp = es.get("interpretation", "")
+        e_asym = es.get("certainty_asymmetry", "")
+
+        html += f'''
+    <!-- How Certain You Are -->
+    <section class="card">
+      <h2>How Certain You Are</h2>
+      <p class="subtitle">Epistemic stance analysis based on <a href="https://en.wikipedia.org/wiki/Hedging_(linguistics)" target="_blank" rel="noopener" style="color: var(--primary);">Biber (2006) and Hyland (2005)</a> — how you signal certainty vs. uncertainty reveals your reasoning style.</p>
+      <div class="epistemic-hero">
+        <div class="ratio-display">
+          <div class="ratio-value">{e_ratio} : 1</div>
+          <div class="ratio-label">Hedge-to-Boost Ratio</div>
+          <div class="ratio-context">Academic papers: 1.5–2.5<br>Casual speech: ~1.0</div>
+        </div>
+'''
+        if e_type:
+            html += f'''        <div class="epistemic-type-badge">
+          <div class="et-label">Your epistemic type</div>
+          <div class="et-name">{e_type}</div>
+          {f'<div class="et-desc">{e_type_desc}</div>' if e_type_desc else ''}
+        </div>
+'''
+        else:
+            html += '''        <div></div>
+'''
+        html += '''      </div>
+'''
+
+        # Domain comparison cards
+        if e_bug is not None or e_strat is not None:
+            html += '''      <div style="margin-top: 16px; font-size: 0.9rem; color: var(--muted); font-weight: 600;">Where you hedge vs. don't:</div>
+      <div class="domain-compare">
+'''
+            if e_bug is not None:
+                bug_color = "var(--secondary)" if e_bug < 2.0 else "var(--primary)" if e_bug < 3.5 else "var(--warning)"
+                bug_label = "direct" if e_bug < 2.0 else "moderate" if e_bug < 3.5 else "hedged"
+                html += f'''        <div class="domain-card">
+          <div class="dc-name">Bug Reports</div>
+          <div class="dc-ratio" style="color: {bug_color};">{e_bug} : 1</div>
+          <div class="dc-label" style="color: {bug_color};">({bug_label})</div>
+        </div>
+'''
+            if e_strat is not None:
+                strat_color = "var(--secondary)" if e_strat < 2.0 else "var(--primary)" if e_strat < 3.5 else "var(--warning)"
+                strat_label = "direct" if e_strat < 2.0 else "moderate" if e_strat < 3.5 else "hedged"
+                html += f'''        <div class="domain-card">
+          <div class="dc-name">Strategy</div>
+          <div class="dc-ratio" style="color: {strat_color};">{e_strat} : 1</div>
+          <div class="dc-label" style="color: {strat_color};">({strat_label})</div>
+        </div>
+'''
+            html += '''      </div>
+'''
+
+        if e_interp:
+            html += f'''      <div class="narrative-text" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">{e_interp}</div>
+'''
+        if e_asym:
+            html += f'''      <div class="callout" style="margin-top: 16px;"><strong>Certainty asymmetry:</strong> {e_asym}</div>
+'''
+        html += '''    </section>
 '''
 
     html += '''
@@ -762,9 +987,9 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
 '''
 
     html += '''
-    <!-- 5. Growth Scorecard -->
+    <!-- Your Evolution -->
     <section class="card">
-      <h2>How You've Grown</h2>
+      <h2>Your Evolution</h2>
       <p class="subtitle">Comparing your first 25% of sessions to your most recent 25%</p>
       <table class="growth-table" id="growth-table"></table>
 '''
@@ -848,24 +1073,32 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
       <p class="subtitle">The assessment frameworks referenced in this report</p>
       <div style="display: grid; gap: 16px;">
         <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Bloom's Taxonomy</div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Bloom's Taxonomy <a href="https://en.wikipedia.org/wiki/Bloom%27s_taxonomy" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
           <div style="font-size: 0.9rem;">A hierarchy of cognitive skills from basic recall (Level 1) to creative synthesis (Level 6). Higher-level prompts — like designing systems or evaluating tradeoffs — indicate stronger AI collaboration skills.</div>
         </div>
         <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Vibe Coding Levels (1-6)</div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Vibe Coding Levels (1-6) <span style="font-weight: 400; font-size: 0.85rem; color: var(--muted);">(Motif framework)</span></div>
           <div style="font-size: 0.9rem;">Our rubric for AI-assisted coding proficiency: (1) Novice — "fix this"; (2) Beginner — some context; (3) Intermediate — uses @mentions, tests; (4) Proficient — context engineering, plans ahead; (5) Advanced — multi-agent, blast radius thinking; (6) Expert — Socratic questioning, builds reusable frameworks.</div>
         </div>
         <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Socratic Questioning</div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Socratic Questioning <span style="font-weight: 400; font-size: 0.85rem; color: var(--muted);">(Motif framework)</span></div>
           <div style="font-size: 0.9rem;">Guiding the AI through carefully chosen questions rather than direct instructions — e.g., "What would happen if we removed X?" instead of "Remove X." Forces the AI to reason through consequences, often producing better solutions.</div>
         </div>
         <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Judgment vs. Reckoning</div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Judgment vs. Reckoning <a href="https://bfranklininstit.medium.com/the-3rs-reimagining-the-role-of-recitation-in-the-age-of-generative-ai-e48c00cf9c62" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(Chris Dede)</a></div>
           <div style="font-size: 0.9rem;">Reckoning = pattern recognition and data processing (what AI does well). Judgment = context, values, and navigating ambiguity (what humans must do). The best vibe coders offload reckoning to AI while retaining judgment.</div>
         </div>
         <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Holistic Critical Thinking Rubric</div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Holistic Critical Thinking Rubric <a href="https://www.insightassessment.com/article/holistic-critical-thinking-scoring-rubric-hctsr" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
           <div style="font-size: 0.9rem;">Rates thinking from Weak (accepts first solution, no alternatives) to Strong (questions assumptions, evaluates multiple approaches, evidence-based reasoning). Applied to how you evaluate AI output and make decisions.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Pennebaker / LIWC <a href="https://en.wikipedia.org/wiki/Linguistic_Inquiry_and_Word_Count" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
+          <div style="font-size: 0.9rem;">Function word analysis based on psychologist James Pennebaker's research. Measures personality dimensions through pronouns, articles, prepositions, and other "invisible" words you use without conscious control. Clout = social confidence. Analytic = abstract vs. concrete thinking. Authenticity = how unfiltered your writing is. Scores are approximate, computed from word frequency patterns.</div>
+        </div>
+        <div>
+          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Epistemic Stance</div>
+          <div style="font-size: 0.9rem;">Measures how you signal certainty vs. uncertainty, based on linguistics research by Biber (2006) and Hyland (2005). Hedges soften claims ("I think," "maybe," "probably"). Boosters strengthen them ("definitely," "always," "clearly"). The hedge-to-boost ratio reveals whether you're naturally cautious or assertive in how you externalize your reasoning.</div>
         </div>
       </div>
     </section>

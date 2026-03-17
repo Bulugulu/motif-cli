@@ -8,7 +8,7 @@ what to look for when analyzing conversation data.
 
 def get_prompt_version() -> str:
     """Return the version string for this prompt."""
-    return "0.5.0"
+    return "0.6.0"
 
 
 def get_analysis_prompt() -> str:
@@ -237,6 +237,37 @@ Judgment = context, ethics, values, navigating ambiguity (what humans must do).
 
 Use this as the interpretive frame for the growth_narrative and blind_spots: is the user offloading reckoning to AI (good) or also offloading judgment (bad -- becoming a passive relay)?
 
+### Framework F: Pennebaker Function Word Analysis (LIWC)
+
+The metrics section includes computed LIWC-style function word counts from all user messages. These are approximate scores based on published LIWC norms for informal writing — not certified LIWC scores.
+
+Available metrics: pronoun rates (I, we, you per 1,000 words), clout (0-100, social confidence), analytic (0-100, abstract vs concrete thinking), authenticity (0-100, how unfiltered), emotional tone (0-100, positive vs negative).
+
+AI chat transcripts are a novel corpus with no published norms. Interpret against general informal writing. Focus on the NON-OBVIOUS:
+- Pronoun balance (I vs we vs you) reveals how the user relates to AI — collaborator vs tool vs authority
+- Analytic score reveals thinking style — categorical/framework-driven vs narrative/example-driven
+- "High authenticity when talking to a machine" is expected and boring. What's the SURPRISING finding?
+- Emotional vocabulary patterns (narrow/binary vs rich/varied) matter more than the tone score itself
+
+Use these computed metrics to produce the `linguistic_identity` section.
+
+### Framework G: Epistemic Stance (Biber 2006, Hyland 2005)
+
+The metrics include hedge count, booster count, hedge-to-boost ratio, and domain-specific ratios.
+
+Reference points for hedge-to-boost ratio:
+- Academic papers: 1.5-2.5 (moderate hedging)
+- Casual speech: ~1.0 (balanced)
+- Above 3.0 in a command-line context: notably elevated hedging
+
+Interpret not just the overall ratio but WHERE hedging changes:
+- Bug reports vs strategic reasoning — where does certainty peak vs drop?
+- "I think" as dual-purpose marker — both hedge and authority claim
+- Over-hedging known beliefs ("I don't know if... probably remove" → then immediately removes it)
+- The gap between internal certainty and external expression
+
+Use these computed metrics to produce the `epistemic_stance` section.
+
 ---
 
 ## Output Format
@@ -329,6 +360,19 @@ Respond with valid JSON in this structure:
     "orientation": "reactive | tactical | strategic",
     "description": "string -- what is the user's apparent vision/intent?",
     "example": "string -- quote showing strategic or tactical thinking, or null"
+  },
+
+  "linguistic_identity": {
+    "pennebaker_interpretation": "string -- 3-5 sentences interpreting the LIWC scores in context. What does the pronoun balance reveal? What does the analytic score mean for their thinking style? Reference the specific numbers.",
+    "most_surprising_finding": "string -- 1-2 sentences. The single most non-obvious thing the function word data reveals. Must be something the user probably doesn't know about themselves.",
+    "pronoun_insight": "string -- 1-2 sentences about I/we/you balance and what it reveals about how they relate to AI."
+  },
+
+  "epistemic_stance": {
+    "interpretation": "string -- 3-5 sentences interpreting the hedge-to-boost ratio. Compare to academic norms (1.5-2.5) and casual speech (~1.0). What does the ratio mean for this person?",
+    "certainty_asymmetry": "string -- 1-2 sentences. Where does the user hedge most vs least? What does the gap reveal?",
+    "epistemic_type": "string -- 2-4 word label, e.g. 'Diplomatic Commander', 'Cautious Reasoner', 'Blunt Executor'",
+    "epistemic_type_description": "string -- 1 sentence describing what this epistemic type means"
   }
 }
 ```
@@ -371,6 +415,8 @@ When assessing `problem_articulation.level`:
 - **Weakest example**: For `problem_articulation.weakest_example`, choose an example where the user gave an ambiguous or unclear request about a complex topic — not just a concise command. A short, targeted request like "use /motif" is efficient delegation, not weak articulation. Weak articulation is when the user's intent is genuinely unclear.
 - **Framework explanations**: Assume the reader doesn't know these frameworks. When referencing Bloom's, the CT Rubric, Judgment vs. Reckoning, or the Vibe Coding Levels, briefly explain the concept before applying it. E.g., "You exercise strategic critical thinking — meaning you evaluate tradeoffs and consider alternatives rather than accepting the first solution — by contextualizing work vis-a-vis a long-term vision." Don't just name-drop framework levels.
 - **Conciseness**: Keep all descriptions tight. Organize multi-point observations as bullet lists, not run-on paragraphs. Skills should be a few words each. Superpowers should be 1 short sentence.
+- **Linguistic identity**: Interpret the Pennebaker metrics. Lead with the most surprising finding — NOT "you're authentic when talking to AI" (obvious). Focus on pronoun balance, thinking style, or emotional vocabulary. Reference the actual numbers (e.g., "Your I-rate of 17.75 and we-rate of 16.32 per 1,000 words are nearly equal...").
+- **Epistemic stance**: Interpret the hedge-to-boost ratio in context. A ratio of 3.66 in a command-line interface means something different than in an essay. Focus on WHERE hedging shifts across domains, and what "I think" means for this specific user.
 
 ## What NOT to Do
 
@@ -414,6 +460,8 @@ Return a JSON array of observation objects.
 8. **Domain expertise** — concepts demonstrated (not just mentioned), depth: surface/working/deep.
 9. **Critical thinking** — hypothesis formation, alternative consideration, assumption questioning, evidence evaluation. Mark present/absent with example.
 10. **Vibe coding level** — place on 6-level scale (Novice/Beginner/Intermediate/Proficient/Advanced/Expert). Cite rubric indicators.
+11. **Linguistic identity**: pronoun patterns (I vs we vs you), function word observations, authenticity markers (typos, unfiltered reactions, exclusive word usage like "but").
+12. **Epistemic stance**: hedging vs boosting patterns, where certainty shifts across domains, "I think" usage frequency and function.
 
 ## Output Format
 
