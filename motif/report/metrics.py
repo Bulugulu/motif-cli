@@ -84,6 +84,102 @@ CATCHPHRASES = [
 FRUSTRATION_PATTERNS = [re.compile(p, re.IGNORECASE) for p in FRUSTRATION_PHRASES]
 CATCHPHRASE_PATTERNS = [re.compile(p, re.IGNORECASE) for p in CATCHPHRASES]
 
+# --- Pennebaker / LIWC-style function word lists ---
+
+PRONOUNS_I = {"i", "me", "my", "mine", "myself"}
+PRONOUNS_WE = {"we", "us", "our", "ours", "ourselves", "let's", "lets"}
+PRONOUNS_YOU = {"you", "your", "yours", "yourself", "yourselves"}
+
+ARTICLES = {"a", "an", "the"}
+
+PREPOSITIONS = {
+    "to", "of", "in", "for", "on", "with", "at", "by", "from", "about",
+    "into", "through", "during", "before", "after", "above", "below",
+    "between", "under", "along", "until", "against", "throughout",
+}
+
+AUX_VERBS = {
+    "is", "am", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "having",
+    "do", "does", "did",
+    "will", "would", "shall", "should",
+    "can", "could", "may", "might", "must",
+}
+
+EXCLUSIVE_WORDS = {
+    "but", "except", "without", "however", "although", "yet", "instead",
+    "unless", "whereas", "nevertheless", "nonetheless", "rather",
+}
+
+POSITIVE_EMOTION = {
+    "good", "great", "nice", "perfect", "awesome", "love", "better",
+    "works", "excellent", "wonderful", "fantastic", "happy", "glad",
+    "cool", "sweet", "beautiful", "amazing", "brilliant", "solid",
+    "impressive", "clean", "elegant", "neat", "fine", "yes",
+}
+
+NEGATIVE_EMOTION = {
+    "wrong", "bad", "broken", "ugly", "hate", "annoying", "frustrating",
+    "confused", "terrible", "horrible", "awful", "worse", "worst",
+    "stupid", "ridiculous", "painful", "messy", "gross", "useless",
+    "failed", "failing", "sucks", "stuck", "lost",
+}
+
+# --- Epistemic stance markers ---
+
+HEDGE_WORDS = {
+    "think", "maybe", "probably", "perhaps", "might", "could",
+    "possibly", "seems", "guess", "believe", "wonder", "suppose",
+    "apparently", "arguably", "somewhat", "roughly", "fairly",
+}
+
+HEDGE_PHRASES = [
+    "i think", "i don't think", "i'm not sure", "i dont think",
+    "i don't know", "i dont know", "not sure", "kind of", "sort of",
+    "it seems like", "i feel like", "i wonder if", "i believe",
+    "i suppose", "i guess",
+]
+
+BOOSTER_WORDS = {
+    "definitely", "certainly", "clearly", "obviously", "absolutely",
+    "always", "never", "completely", "totally", "must", "surely",
+    "undoubtedly", "exactly", "precisely", "entirely", "utterly",
+}
+
+TENTATIVE_WORDS = {"maybe", "perhaps", "possibly", "might", "could"}
+
+CERTAINTY_WORDS = {"always", "never", "definitely", "certainly", "absolutely"}
+
+CAUSAL_WORDS = {
+    "because", "so", "why", "therefore", "since", "reason",
+    "cause", "hence", "thus", "consequently",
+}
+
+INSIGHT_WORDS = {
+    "think", "know", "realize", "understand", "recognize", "consider",
+    "discover", "learn", "notice", "figure", "conclude", "determine",
+}
+
+# Domain classification keywords for epistemic analysis
+BUG_REPORT_KEYWORDS = {
+    "error", "broken", "failing", "traceback", "exception", "bug",
+    "crash", "stacktrace", "undefined", "null", "typeerror",
+    "syntaxerror", "404", "500", "timeout",
+}
+
+STRATEGIC_KEYWORDS = {
+    "i think", "should", "strategy", "approach", "vision",
+    "hypothesis", "direction", "philosophy", "goal", "plan",
+    "roadmap", "priority", "tradeoff", "trade-off",
+}
+
+HEDGE_PHRASE_PATTERNS = [re.compile(re.escape(p), re.IGNORECASE) for p in HEDGE_PHRASES]
+
+
+def _tokenize(text: str) -> list[str]:
+    """Split text into lowercase words. Simple whitespace + punctuation split."""
+    return re.findall(r"[a-z']+", text.lower())
+
 
 def _count_swears(text: str) -> int:
     return len(SWEAR_WORDS.findall(text))
@@ -325,6 +421,190 @@ def _growth_scorecard(
     }
 
 
+def _empty_pennebaker() -> dict:
+    return {
+        "total_words": 0,
+        "pronoun_i_rate": 0.0, "pronoun_we_rate": 0.0, "pronoun_you_rate": 0.0,
+        "clout": 0, "analytic": 0, "authenticity": 0, "emotional_tone": 50,
+        "articles_rate": 0.0, "prepositions_rate": 0.0, "aux_verbs_rate": 0.0,
+        "exclusive_rate": 0.0, "positive_emotion_rate": 0.0, "negative_emotion_rate": 0.0,
+    }
+
+
+def _empty_epistemic() -> dict:
+    return {
+        "hedge_count": 0, "booster_count": 0, "hedge_to_boost_ratio": 0.0,
+        "tentative_count": 0, "certainty_count": 0,
+        "causal_word_count": 0, "insight_word_count": 0,
+        "hedge_rate": 0.0, "booster_rate": 0.0,
+        "causal_rate": 0.0, "insight_rate": 0.0,
+        "bug_report_hedge_ratio": None, "strategic_hedge_ratio": None,
+    }
+
+
+def _pennebaker_metrics(messages: list[dict]) -> dict:
+    """Compute LIWC-style function word metrics from user messages."""
+    user_msgs = [m for m in messages if m.get("role") == "user"]
+    all_text = " ".join(m.get("content") or "" for m in user_msgs)
+    words = _tokenize(all_text)
+    total = len(words)
+
+    if total < 100:
+        return _empty_pennebaker()
+
+    word_set_counts = {}
+    for name, word_set in [
+        ("i", PRONOUNS_I), ("we", PRONOUNS_WE), ("you", PRONOUNS_YOU),
+        ("articles", ARTICLES), ("prepositions", PREPOSITIONS),
+        ("aux_verbs", AUX_VERBS), ("exclusive", EXCLUSIVE_WORDS),
+        ("positive", POSITIVE_EMOTION), ("negative", NEGATIVE_EMOTION),
+    ]:
+        word_set_counts[name] = sum(1 for w in words if w in word_set)
+
+    def rate(count: int) -> float:
+        return round(count / total * 1000, 2)
+
+    i_r = rate(word_set_counts["i"])
+    we_r = rate(word_set_counts["we"])
+    you_r = rate(word_set_counts["you"])
+
+    total_pronouns = word_set_counts["i"] + word_set_counts["we"] + word_set_counts["you"]
+    we_you = word_set_counts["we"] + word_set_counts["you"]
+
+    # Clout: share of we+you pronouns relative to total pronouns
+    # High we/you + low I = high clout. Scale: 0-100.
+    if total_pronouns > 0:
+        clout = round(min(100, (we_you / total_pronouns) * 130))
+    else:
+        clout = 50
+
+    # Analytic: ratio of (articles+prepositions) to (articles+prepositions+pronouns+aux_verbs)
+    analytic_top = word_set_counts["articles"] + word_set_counts["prepositions"]
+    analytic_bottom = analytic_top + total_pronouns + word_set_counts["aux_verbs"]
+    if analytic_bottom > 0:
+        analytic = round((analytic_top / analytic_bottom) * 100)
+    else:
+        analytic = 50
+
+    # Authenticity: composite of I-pronoun rate, exclusive words, negative emotion
+    # High I + high exclusive + some negative emotion = high authenticity
+    i_norm = min(1.0, word_set_counts["i"] / total * 50)  # ~20/1k = 1.0
+    excl_norm = min(1.0, word_set_counts["exclusive"] / total * 100)  # ~10/1k = 1.0
+    neg_norm = min(1.0, word_set_counts["negative"] / total * 200)  # ~5/1k = 1.0
+    authenticity = round(min(100, (i_norm * 0.4 + excl_norm * 0.35 + neg_norm * 0.25) * 100))
+
+    # Emotional tone: positive / (positive + negative), centered at 50
+    pos = word_set_counts["positive"]
+    neg = word_set_counts["negative"]
+    if pos + neg > 0:
+        emotional_tone = round((pos / (pos + neg)) * 100)
+    else:
+        emotional_tone = 50
+
+    return {
+        "total_words": total,
+        "pronoun_i_rate": i_r,
+        "pronoun_we_rate": we_r,
+        "pronoun_you_rate": you_r,
+        "clout": clout,
+        "analytic": analytic,
+        "authenticity": authenticity,
+        "emotional_tone": emotional_tone,
+        "articles_rate": rate(word_set_counts["articles"]),
+        "prepositions_rate": rate(word_set_counts["prepositions"]),
+        "aux_verbs_rate": rate(word_set_counts["aux_verbs"]),
+        "exclusive_rate": rate(word_set_counts["exclusive"]),
+        "positive_emotion_rate": rate(word_set_counts["positive"]),
+        "negative_emotion_rate": rate(word_set_counts["negative"]),
+    }
+
+
+def _domain_hedge_ratio(
+    messages: list[dict], keywords: set[str],
+) -> float | None:
+    """Compute hedge-to-boost ratio for messages matching domain keywords.
+    Returns None if fewer than 5 messages match."""
+    matching = []
+    for m in messages:
+        content = (m.get("content") or "").lower()
+        if any(kw in content for kw in keywords):
+            matching.append(content)
+
+    if len(matching) < 5:
+        return None
+
+    combined = " ".join(matching)
+    words = _tokenize(combined)
+    hedges = sum(1 for w in words if w in HEDGE_WORDS)
+    # Add phrase matches
+    for pat in HEDGE_PHRASE_PATTERNS:
+        hedges += len(pat.findall(combined))
+    boosters = sum(1 for w in words if w in BOOSTER_WORDS)
+
+    if boosters == 0:
+        return round(float(hedges), 2) if hedges > 0 else 0.0
+    return round(hedges / boosters, 2)
+
+
+def _epistemic_metrics(messages: list[dict]) -> dict:
+    """Compute epistemic stance (certainty vs hedging) metrics from user messages."""
+    user_msgs = [m for m in messages if m.get("role") == "user"]
+    all_text = " ".join(m.get("content") or "" for m in user_msgs)
+    words = _tokenize(all_text)
+    total = len(words)
+
+    if total < 100:
+        return _empty_epistemic()
+
+    # Single-word counts
+    hedge_word_count = sum(1 for w in words if w in HEDGE_WORDS)
+    booster_count = sum(1 for w in words if w in BOOSTER_WORDS)
+    tentative_count = sum(1 for w in words if w in TENTATIVE_WORDS)
+    certainty_count = sum(1 for w in words if w in CERTAINTY_WORDS)
+    causal_count = sum(1 for w in words if w in CAUSAL_WORDS)
+    insight_count = sum(1 for w in words if w in INSIGHT_WORDS)
+
+    # Multi-word phrase counts (on raw text to handle contractions)
+    phrase_count = 0
+    text_lower = all_text.lower()
+    for pat in HEDGE_PHRASE_PATTERNS:
+        phrase_count += len(pat.findall(text_lower))
+
+    # Total hedges = single-word hedges + phrase matches
+    # But avoid double-counting: "think" appears in both HEDGE_WORDS and "i think"
+    # Use phrase count as the primary hedge count since it's more specific
+    hedge_count = hedge_word_count + phrase_count
+
+    def rate(count: int) -> float:
+        return round(count / total * 1000, 2)
+
+    # Hedge-to-boost ratio
+    if booster_count > 0:
+        hedge_to_boost_ratio = round(hedge_count / booster_count, 2)
+    else:
+        hedge_to_boost_ratio = round(float(hedge_count), 2) if hedge_count > 0 else 0.0
+
+    # Domain-specific hedge ratios
+    bug_report_hedge_ratio = _domain_hedge_ratio(user_msgs, BUG_REPORT_KEYWORDS)
+    strategic_hedge_ratio = _domain_hedge_ratio(user_msgs, STRATEGIC_KEYWORDS)
+
+    return {
+        "hedge_count": hedge_count,
+        "booster_count": booster_count,
+        "hedge_to_boost_ratio": hedge_to_boost_ratio,
+        "tentative_count": tentative_count,
+        "certainty_count": certainty_count,
+        "causal_word_count": causal_count,
+        "insight_word_count": insight_count,
+        "hedge_rate": rate(hedge_count),
+        "booster_rate": rate(booster_count),
+        "causal_rate": rate(causal_count),
+        "insight_rate": rate(insight_count),
+        "bug_report_hedge_ratio": bug_report_hedge_ratio,
+        "strategic_hedge_ratio": strategic_hedge_ratio,
+    }
+
+
 def _personality_metrics(messages: list[dict], sessions: dict[str, dict]) -> dict:
     user_msgs = [m for m in messages if m.get("role") == "user"]
     total_content = " ".join(m.get("content") or "" for m in user_msgs)
@@ -508,6 +788,8 @@ def compute_all_metrics(messages: list[dict]) -> dict:
 
     growth = _growth_scorecard(sessions, messages)
     personality = _personality_metrics(messages, sessions)
+    pennebaker = _pennebaker_metrics(messages)
+    epistemic = _epistemic_metrics(messages)
 
     return {
         "hero": {
@@ -531,6 +813,8 @@ def compute_all_metrics(messages: list[dict]) -> dict:
         "growth_scorecard": growth,
         "projects": projects,
         "personality": personality,
+        "pennebaker": pennebaker,
+        "epistemic": epistemic,
     }
 
 
@@ -584,4 +868,6 @@ def _empty_metrics() -> dict:
             "busiest_day": "",
             "busiest_day_messages": 0,
         },
+        "pennebaker": _empty_pennebaker(),
+        "epistemic": _empty_epistemic(),
     }
