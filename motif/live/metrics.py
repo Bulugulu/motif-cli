@@ -141,7 +141,7 @@ class MetricsEngine:
         self.peak_aipm_time = 0.0
         self.peak_concurrency = 0
         self._concurrency_samples.clear()
-        self.session_start = time.time()
+        self.session_start = time.time() - self.ACTIVE_THRESHOLD
         self.last_activity_timestamp = 0.0
 
     def compute(self) -> LiveMetrics:
