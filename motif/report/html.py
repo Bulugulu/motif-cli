@@ -798,7 +798,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         html += '''
     <section class="card">
       <h2>How You Ask</h2>
-      <p class="subtitle">The quality of your questions reveals more than your statements. We use <a href="#glossary" style="color: var(--primary);">Bloom's Taxonomy</a> to assess the cognitive level of your prompts.</p>
+      <p class="subtitle">The quality of your questions reveals more than your statements. Assessed using <a href="https://en.wikipedia.org/wiki/Bloom%27s_taxonomy" target="_blank" rel="noopener" style="color: var(--primary);">Bloom's Taxonomy</a> — a hierarchy of cognitive skills from basic recall (Level 1) to creative synthesis (Level 6). Higher-level prompts indicate stronger AI collaboration.</p>
 '''
         q_ratio = qb.get("question_ratio", "")
         q_dominant = qb.get("dominant_type", "")
@@ -863,7 +863,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         html += '''
     <section class="card">
       <h2>How You Think</h2>
-      <p class="subtitle">Do you accept the first solution, or question assumptions and weigh alternatives? Assessed against the <a href="#glossary" style="color: var(--primary);">Holistic Critical Thinking Rubric</a>.</p>
+      <p class="subtitle">Do you accept the first solution, or question assumptions and weigh alternatives? Assessed against the <a href="https://www.insightassessment.com/article/holistic-critical-thinking-scoring-rubric-hctsr" target="_blank" rel="noopener" style="color: var(--primary);">Holistic Critical Thinking Rubric</a> — rated from Weak (accepts first solution) to Strong (questions assumptions, evaluates multiple approaches, evidence-based reasoning).</p>
 '''
         ct_level = ct.get("ct_level", "")
         pa_level = pa.get("level", "")
@@ -990,7 +990,7 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
     <!-- Your Evolution -->
     <section class="card">
       <h2>Your Evolution</h2>
-      <p class="subtitle">Comparing your first 25% of sessions to your most recent 25%</p>
+      <p class="subtitle">Comparing your first 25% of sessions to your most recent 25%. Growth narrative uses Chris Dede's <a href="https://bfranklininstit.medium.com/the-3rs-reimagining-the-role-of-recitation-in-the-age-of-generative-ai-e48c00cf9c62" target="_blank" rel="noopener" style="color: var(--primary);">Judgment vs. Reckoning</a> framework — are you offloading more reckoning (pattern matching) to AI while retaining judgment (context, values, ambiguity)?</p>
       <table class="growth-table" id="growth-table"></table>
 '''
 
@@ -1066,43 +1066,6 @@ def generate_html_report(metrics: dict, analysis: dict | None = None, user_name:
         html += '''    </section>
 '''
 
-    html += '''
-    <!-- Glossary -->
-    <section class="card" id="glossary">
-      <h2>Framework Glossary</h2>
-      <p class="subtitle">The assessment frameworks referenced in this report</p>
-      <div style="display: grid; gap: 16px;">
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Bloom's Taxonomy <a href="https://en.wikipedia.org/wiki/Bloom%27s_taxonomy" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
-          <div style="font-size: 0.9rem;">A hierarchy of cognitive skills from basic recall (Level 1) to creative synthesis (Level 6). Higher-level prompts — like designing systems or evaluating tradeoffs — indicate stronger AI collaboration skills.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Vibe Coding Levels (1-6) <span style="font-weight: 400; font-size: 0.85rem; color: var(--muted);">(Motif framework)</span></div>
-          <div style="font-size: 0.9rem;">Our rubric for AI-assisted coding proficiency: (1) Novice — "fix this"; (2) Beginner — some context; (3) Intermediate — uses @mentions, tests; (4) Proficient — context engineering, plans ahead; (5) Advanced — multi-agent, blast radius thinking; (6) Expert — Socratic questioning, builds reusable frameworks.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Socratic Questioning <span style="font-weight: 400; font-size: 0.85rem; color: var(--muted);">(Motif framework)</span></div>
-          <div style="font-size: 0.9rem;">Guiding the AI through carefully chosen questions rather than direct instructions — e.g., "What would happen if we removed X?" instead of "Remove X." Forces the AI to reason through consequences, often producing better solutions.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Judgment vs. Reckoning <a href="https://bfranklininstit.medium.com/the-3rs-reimagining-the-role-of-recitation-in-the-age-of-generative-ai-e48c00cf9c62" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(Chris Dede)</a></div>
-          <div style="font-size: 0.9rem;">Reckoning = pattern recognition and data processing (what AI does well). Judgment = context, values, and navigating ambiguity (what humans must do). The best vibe coders offload reckoning to AI while retaining judgment.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Holistic Critical Thinking Rubric <a href="https://www.insightassessment.com/article/holistic-critical-thinking-scoring-rubric-hctsr" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
-          <div style="font-size: 0.9rem;">Rates thinking from Weak (accepts first solution, no alternatives) to Strong (questions assumptions, evaluates multiple approaches, evidence-based reasoning). Applied to how you evaluate AI output and make decisions.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Pennebaker / LIWC <a href="https://en.wikipedia.org/wiki/Linguistic_Inquiry_and_Word_Count" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 400; font-size: 0.85rem;">(source)</a></div>
-          <div style="font-size: 0.9rem;">Function word analysis based on psychologist James Pennebaker's research. Measures personality dimensions through pronouns, articles, prepositions, and other "invisible" words you use without conscious control. Clout = social confidence. Analytic = abstract vs. concrete thinking. Authenticity = how unfiltered your writing is. Scores are approximate, computed from word frequency patterns.</div>
-        </div>
-        <div>
-          <div style="color: #fff; font-weight: 600; margin-bottom: 4px;">Epistemic Stance</div>
-          <div style="font-size: 0.9rem;">Measures how you signal certainty vs. uncertainty, based on linguistics research by Biber (2006) and Hyland (2005). Hedges soften claims ("I think," "maybe," "probably"). Boosters strengthen them ("definitely," "always," "clearly"). The hedge-to-boost ratio reveals whether you're naturally cautious or assertive in how you externalize your reasoning.</div>
-        </div>
-      </div>
-    </section>
-'''
 
     html += '''
     <!-- 8. Footer -->
