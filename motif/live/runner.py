@@ -9,7 +9,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.live import Live
 
-from .poller import ClaudeCodePoller
+from .poller import ClaudeCodePoller, CopilotCliPoller
 from .metrics import MetricsEngine, LiveMetrics
 from .display import render_full, render_compact, render_summary, render_idle
 
@@ -75,6 +75,27 @@ def _update_records(metrics: LiveMetrics, sessions_dir: Path):
             json.dump(records, f, indent=2)
 
 
+def _create_pollers() -> list:
+    """Auto-detect available AI tools and create pollers for each."""
+    pollers = []
+
+    # Claude Code
+    claude_path = Path.home() / ".claude"
+    if (claude_path / "projects").exists():
+        pollers.append(ClaudeCodePoller(claude_path))
+
+    # Copilot CLI
+    copilot_path = Path.home() / ".copilot"
+    if (copilot_path / "session-state").exists():
+        pollers.append(CopilotCliPoller(copilot_path))
+
+    # Fallback: always include Claude Code poller even if no projects dir yet
+    if not pollers:
+        pollers.append(ClaudeCodePoller())
+
+    return pollers
+
+
 def run_live(
     compact: bool = False,
     poll_interval: float = 2.0,
@@ -89,15 +110,19 @@ def run_live(
         include_history: If True, ingest existing data; if False, start fresh.
     """
     console = Console()
-    poller = ClaudeCodePoller()
+    pollers = _create_pollers()
     engine = MetricsEngine()
 
     if include_history:
-        messages = poller.poll()
-        engine.ingest(messages)
-        console.print(f"[dim]Loaded {len(messages)} existing messages[/dim]")
+        total_loaded = 0
+        for p in pollers:
+            messages = p.poll()
+            engine.ingest(messages)
+            total_loaded += len(messages)
+        console.print(f"[dim]Loaded {total_loaded} existing messages[/dim]")
     else:
-        poller.skip_existing()
+        for p in pollers:
+            p.skip_existing()
 
     running = True
 
@@ -107,7 +132,14 @@ def run_live(
 
     signal.signal(signal.SIGINT, handle_signal)
 
-    console.print("[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 watching for AI activity...")
+    provider_names = []
+    for p in pollers:
+        if isinstance(p, ClaudeCodePoller):
+            provider_names.append("Claude Code")
+        elif isinstance(p, CopilotCliPoller):
+            provider_names.append("Copilot CLI")
+    providers_str = " + ".join(provider_names) if provider_names else "none"
+    console.print(f"[bright_blue bold]\u25c8 MOTIF LIVE[/bright_blue bold] \u2014 watching for AI activity ({providers_str})...")
     if idle_timeout > 0:
         console.print(f"[dim]Polling every {poll_interval}s | Idle timeout: {idle_timeout}s | Ctrl+C to stop[/dim]\n")
     else:
@@ -119,7 +151,9 @@ def run_live(
 
             with Live(console=console, refresh_per_second=1, vertical_overflow="crop") as live:
                 while running:
-                    new_messages = poller.poll()
+                    new_messages = []
+                    for p in pollers:
+                        new_messages.extend(p.poll())
                     if new_messages:
                         engine.ingest(new_messages)
 
@@ -153,7 +187,9 @@ def run_live(
             # Show idle panel until new activity arrives
             with Live(idle_panel, console=console, refresh_per_second=1, vertical_overflow="crop") as live:
                 while running:
-                    new_messages = poller.poll()
+                    new_messages = []
+                    for p in pollers:
+                        new_messages.extend(p.poll())
                     if new_messages:
                         engine.ingest(new_messages)
                         if engine.session_tokens > 0:

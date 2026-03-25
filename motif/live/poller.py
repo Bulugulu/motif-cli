@@ -175,3 +175,227 @@ class ClaudeCodePoller:
             request_id=record.get("requestId", message_data.get("id", "")),
             is_subagent=is_subagent,
         )
+
+
+class CopilotCliPoller:
+    """Polls Copilot CLI JSONL files for new messages.
+
+    Watches ~/.copilot/session-state/ for active session files and reads
+    new lines as they're appended.
+    """
+
+    def __init__(self, copilot_path: Optional[Path] = None):
+        self.copilot_path = copilot_path or (Path.home() / ".copilot")
+        self.sessions: dict[str, SessionState] = {}
+        self._discovered_files: set[str] = set()
+        self._current_model: dict[str, str] = {}  # session_id -> current model
+
+    def discover_sessions(self) -> list[Path]:
+        """Find all events.jsonl session files."""
+        session_state_dir = self.copilot_path / "session-state"
+        if not session_state_dir.exists():
+            return []
+        files = []
+        # New format: {id}/events.jsonl subdirectories
+        for subdir in session_state_dir.iterdir():
+            if subdir.is_dir():
+                events_file = subdir / "events.jsonl"
+                if events_file.exists():
+                    files.append(events_file)
+        # Old format: flat .jsonl files
+        for f in session_state_dir.iterdir():
+            if f.is_file() and f.suffix == ".jsonl":
+                files.append(f)
+        return files
+
+    def poll(self) -> list[Message]:
+        """Poll all known sessions for new messages.
+
+        Returns new messages since last poll.
+        """
+        new_messages = []
+
+        # Discover new session files
+        for path in self.discover_sessions():
+            key = str(path)
+            if key not in self.sessions:
+                self.sessions[key] = SessionState(
+                    path=path,
+                    last_size=0,
+                )
+                self._discovered_files.add(key)
+
+        # Read new data from each session
+        for key, state in list(self.sessions.items()):
+            try:
+                current_size = state.path.stat().st_size
+            except OSError:
+                continue
+
+            if current_size <= state.last_size:
+                continue
+
+            try:
+                with open(state.path, "r", encoding="utf-8") as f:
+                    f.seek(state.last_size)
+                    new_data = f.read()
+                state.last_size = current_size
+            except OSError:
+                continue
+
+            for line in new_data.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                msg = self._parse_record(record, state)
+                if msg:
+                    if not state.session_id:
+                        state.session_id = msg.session_id
+                    if not state.project:
+                        state.project = msg.project
+                    new_messages.append(msg)
+
+        return new_messages
+
+    def get_active_session_ids(self, window_seconds: float = 300) -> set[str]:
+        """Return session IDs that have been active recently."""
+        cutoff = time.time() - window_seconds
+        active = set()
+        for state in self.sessions.values():
+            try:
+                if state.path.stat().st_mtime > cutoff and state.session_id:
+                    active.add(state.session_id)
+            except OSError:
+                continue
+        return active
+
+    def skip_existing(self):
+        """Advance all file pointers to current end — only track NEW data.
+
+        Still reads the session.start event from each file to capture
+        session_id and project context needed for future live messages.
+        """
+        for path in self.discover_sessions():
+            key = str(path)
+            try:
+                size = path.stat().st_size
+            except OSError:
+                size = 0
+            state = SessionState(path=path, last_size=size)
+            self.sessions[key] = state
+            self._discovered_files.add(key)
+
+            # Read first few lines to extract session metadata
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            record = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if record.get("type") == "session.start":
+                            data = record.get("data", {})
+                            sid = data.get("sessionId", "")
+                            if sid:
+                                state.session_id = sid
+                            ctx = data.get("context", {})
+                            cwd = ctx.get("cwd", "")
+                            if cwd:
+                                state.project = cwd.rstrip("/\\").rsplit(
+                                    "/", 1
+                                )[-1].rsplit("\\", 1)[-1].lower()
+                            break
+            except OSError:
+                pass
+
+    def _parse_record(
+        self, record: dict, state: SessionState
+    ) -> Optional[Message]:
+        """Parse a Copilot CLI event into a Message."""
+        event_type = record.get("type")
+        data = record.get("data", {})
+        timestamp = record.get("timestamp", "")
+        session_id = state.session_id or "unknown"
+        project = state.project or "unknown"
+
+        if event_type == "session.start":
+            sid = data.get("sessionId", "")
+            if sid:
+                state.session_id = sid
+            context = data.get("context", {})
+            cwd = context.get("cwd", "")
+            if cwd:
+                state.project = cwd.rstrip("/\\").rsplit("/", 1)[-1].rsplit(
+                    "\\", 1
+                )[-1].lower()
+            return None
+
+        if event_type == "session.model_change":
+            new_model = data.get("newModel")
+            if new_model and state.session_id:
+                self._current_model[state.session_id] = new_model
+            return None
+
+        if event_type == "user.message":
+            content = data.get("content", "")
+            return Message(
+                type="user",
+                timestamp=timestamp,
+                session_id=state.session_id or "unknown",
+                project=state.project or "unknown",
+                content_chars=len(content) if isinstance(content, str) else 0,
+            )
+
+        if event_type == "assistant.message":
+            content = data.get("content", "")
+            parent_tcid = data.get("parentToolCallId")
+            is_subagent = bool(parent_tcid)
+            effective_sid = (
+                f"subagent-{parent_tcid}"
+                if is_subagent and parent_tcid
+                else (state.session_id or "unknown")
+            )
+            return Message(
+                type="assistant",
+                timestamp=timestamp,
+                session_id=effective_sid,
+                project=state.project or "unknown",
+                content_chars=len(content) if isinstance(content, str) else 0,
+                output_tokens=data.get("outputTokens", 0) or 0,
+                model=self._current_model.get(state.session_id or "", None),
+                request_id=data.get("interactionId", ""),
+                is_subagent=is_subagent,
+            )
+
+        if event_type == "assistant.usage":
+            parent_tcid = data.get("parentToolCallId")
+            is_subagent = bool(parent_tcid)
+            effective_sid = (
+                f"subagent-{parent_tcid}"
+                if is_subagent and parent_tcid
+                else (state.session_id or "unknown")
+            )
+            model = data.get("model") or self._current_model.get(
+                state.session_id or "", None
+            )
+            return Message(
+                type="assistant",
+                timestamp=timestamp,
+                session_id=effective_sid,
+                project=state.project or "unknown",
+                output_tokens=data.get("outputTokens", 0) or 0,
+                input_tokens=data.get("inputTokens", 0) or 0,
+                model=model,
+                request_id=data.get("interactionId", data.get("apiCallId", "")),
+                is_subagent=is_subagent,
+            )
+
+        return None

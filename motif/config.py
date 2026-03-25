@@ -1,5 +1,6 @@
 """Configuration management for Motif CLI."""
 
+import platform
 from pathlib import Path
 import re
 
@@ -61,6 +62,46 @@ def get_claude_code_global_config() -> Path:
     return get_claude_code_dir() / "CLAUDE.md"
 
 
+# ── Copilot CLI paths ───────────────────────────────────────────────
+
+def get_copilot_cli_dir() -> Path:
+    """Get the ~/.copilot directory (Copilot CLI's config root)."""
+    return Path.home() / ".copilot"
+
+
+def get_copilot_cli_session_state_dir() -> Path:
+    """Get the Copilot CLI session-state directory."""
+    return get_copilot_cli_dir() / "session-state"
+
+
+# ── Copilot VS Code paths ──────────────────────────────────────────
+
+def get_copilot_vscode_storage_paths() -> list[tuple[Path, str]]:
+    """Get VS Code workspace storage paths with edition labels.
+
+    Returns list of (path, edition) tuples where edition is 'stable' or 'insider'.
+    """
+    import os
+    system = platform.system()
+    paths = []
+
+    if system == "Windows":
+        appdata = os.environ.get("APPDATA", "")
+        if appdata:
+            paths.append((Path(appdata) / "Code" / "User" / "workspaceStorage", "stable"))
+            paths.append((Path(appdata) / "Code - Insiders" / "User" / "workspaceStorage", "insider"))
+    elif system == "Darwin":
+        home = Path.home()
+        paths.append((home / "Library" / "Application Support" / "Code" / "User" / "workspaceStorage", "stable"))
+        paths.append((home / "Library" / "Application Support" / "Code - Insiders" / "User" / "workspaceStorage", "insider"))
+    else:
+        home = Path.home()
+        paths.append((home / ".config" / "Code" / "User" / "workspaceStorage", "stable"))
+        paths.append((home / ".config" / "Code - Insiders" / "User" / "workspaceStorage", "insider"))
+
+    return paths
+
+
 # ── Environment detection ───────────────────────────────────────────
 
 def detect_installed_tools() -> set[str]:
@@ -75,6 +116,10 @@ def detect_installed_tools() -> set[str]:
         tools.add("cursor")
     if (home / ".claude").is_dir():
         tools.add("claude-code")
+    if get_copilot_cli_session_state_dir().is_dir():
+        tools.add("copilot-cli")
+    if any(p.is_dir() for p, _ in get_copilot_vscode_storage_paths()):
+        tools.add("copilot-vscode")
 
     return tools
 

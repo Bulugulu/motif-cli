@@ -15,7 +15,7 @@ Track your AI output in real-time. Like StarCraft APM, but for vibe coding.
 
 Key metrics shown: **AIPM** (AI tokens per minute), **concurrency** (parallel agents), **per-agent efficiency**. Color-coded thresholds from red (idle) to purple (peak output). Session summary when you stop.
 
-Claude Code support. Cursor and more coming soon.
+Claude Code and GitHub Copilot CLI support. Cursor and more coming soon.
 
 ```bash
 motif live                    # Full TUI dashboard
@@ -86,10 +86,10 @@ AI Coding Tools              Local Storage                What You Get
 
 Cursor IDE         ┐
 Claude Code CLI    ┤
-                   ├──────►  ~/.motif/conversations/  ──────►  ⚡ Live Dashboard (motif live)
+GitHub Copilot CLI ┤
+Copilot VS Code    ├──────►  ~/.motif/conversations/  ──────►  ⚡ Live Dashboard (motif live)
 SpecStory ¹        ┤          (Extracted Locally)              📊 Vibe Report (motif vibe-report)
-Windsurf ²         ┤                                           🔧 CLAUDE.md / .cursorrules ³
-GitHub Copilot ²   ┘
+Windsurf ²         ┘                                           🔧 CLAUDE.md / .cursorrules ³
 
 ¹ Coming soon   ² Planned   ³ via motif analyze + motif rules
 ```
@@ -97,7 +97,7 @@ GitHub Copilot ²   ┘
 ## 🔄 Workflow
 
 1. **Install** — `pip install motif-cli`
-2. **Extract** — `motif extract all` pulls conversations from Cursor and Claude Code
+2. **Extract** — `motif extract all` pulls conversations from Cursor, Claude Code, GitHub Copilot CLI, and Copilot in VS Code
 3. **Dashboard** — `motif live` launches the real-time dashboard while you work
 4. **Report** — `motif vibe-report --name "Your Name"` generates your assessment
 
@@ -109,9 +109,10 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 |------|---------|-------------|----------------|
 | **[Claude Code](https://claude.ai/claude-code)** | ✅ | ✅ | ✅ |
 | **[Cursor IDE](https://cursor.com)** | ✅ | ✅ | ✅ [Extension](https://open-vsx.org/extension/motif/motif) |
+| **[GitHub Copilot CLI](https://github.com/features/copilot)** | ✅ | ✅ | ✅ |
+| **[Copilot in VS Code](https://github.com/features/copilot)** | ✅ | ✅ | — |
 | **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | 🔜 | — |
 | **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | 📋 | 📋 |
-| **[GitHub Copilot](https://github.com/features/copilot)** | 📋 Planned | 📋 | 📋 |
 | **[Codex CLI](https://openai.com/codex)** | 📋 Planned | 📋 | 📋 |
 | **[Gemini CLI](https://cloud.google.com/gemini)** | 📋 Planned | 📋 | 📋 |
 
@@ -129,9 +130,11 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 Extract conversations from AI coding tools into `~/.motif/conversations/`.
 
 ```bash
-motif extract cursor     # Extract from Cursor
-motif extract claude     # Extract from Claude Code
-motif extract all        # Extract from all sources
+motif extract cursor          # Extract from Cursor
+motif extract claude          # Extract from Claude Code
+motif extract copilot-cli     # Extract from GitHub Copilot CLI
+motif extract copilot-vscode  # Extract from Copilot in VS Code
+motif extract all             # Extract from all sources
 ```
 
 ### `motif live`
