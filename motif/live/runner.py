@@ -9,7 +9,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.live import Live
 
-from .poller import ClaudeCodePoller, CopilotCliPoller
+from .poller import ClaudeCodePoller, CopilotCliPoller, CopilotVsCodePoller
 from .metrics import MetricsEngine, LiveMetrics
 from .display import render_full, render_compact, render_summary, render_idle
 
@@ -88,6 +88,12 @@ def _create_pollers() -> list:
     copilot_path = Path.home() / ".copilot"
     if (copilot_path / "session-state").exists():
         pollers.append(CopilotCliPoller(copilot_path))
+
+    # Copilot VS Code
+    from motif.extractors.copilot_vscode import get_copilot_vscode_data_paths
+    vscode_paths = get_copilot_vscode_data_paths()
+    if vscode_paths:
+        pollers.append(CopilotVsCodePoller(vscode_paths))
 
     # Fallback: always include Claude Code poller even if no projects dir yet
     if not pollers:

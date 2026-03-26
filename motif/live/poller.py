@@ -399,3 +399,331 @@ class CopilotCliPoller:
             )
 
         return None
+
+
+class CopilotVsCodePoller:
+    """Polls VS Code Copilot Chat VSCDB/JSON files for new messages.
+
+    Unlike the JSONL-based pollers, VS Code stores chat data in SQLite
+    databases and JSON files that are overwritten rather than appended.
+    This poller tracks file modification times and diffs request counts
+    per session to detect new activity.
+    """
+
+    def __init__(self, storage_paths: Optional[list] = None):
+        if storage_paths is None:
+            from motif.extractors.copilot_vscode import (
+                get_copilot_vscode_data_paths,
+            )
+            storage_paths = get_copilot_vscode_data_paths()
+        self.storage_paths = storage_paths
+        # session_id -> number of requests already seen
+        self._seen_counts: dict[str, int] = {}
+        # db/json file path -> last mtime
+        self._file_mtimes: dict[str, float] = {}
+        # workspace dir -> project name
+        self._workspace_projects: dict[str, str] = {}
+
+    def discover_sessions(self) -> list[Path]:
+        """Find all VSCDB and chat JSON files across workspace storage."""
+        files: list[Path] = []
+        for storage_root, _edition in self.storage_paths:
+            if not storage_root.exists():
+                continue
+            for ws_dir in storage_root.iterdir():
+                if not ws_dir.is_dir():
+                    continue
+                # VSCDB databases
+                db_path = ws_dir / "state.vscdb"
+                if db_path.is_file():
+                    files.append(db_path)
+                # JSON/JSONL files in chat subdirectories
+                for subdir_name in ("chatSessions", "chat"):
+                    chat_dir = ws_dir / subdir_name
+                    if chat_dir.is_dir():
+                        for f in chat_dir.iterdir():
+                            if f.is_file() and f.suffix.lower() in (
+                                ".json",
+                                ".jsonl",
+                            ):
+                                files.append(f)
+        return files
+
+    def poll(self) -> list[Message]:
+        """Poll for new messages since last poll."""
+        import sqlite3
+
+        new_messages: list[Message] = []
+
+        for path in self.discover_sessions():
+            key = str(path)
+            try:
+                current_mtime = path.stat().st_mtime
+            except OSError:
+                continue
+
+            # Skip unchanged files
+            if key in self._file_mtimes and current_mtime <= self._file_mtimes[key]:
+                continue
+            self._file_mtimes[key] = current_mtime
+
+            # Resolve project for this workspace
+            ws_dir = path.parent
+            if path.suffix.lower() in (".json", ".jsonl"):
+                ws_dir = path.parent.parent  # chat/<file> -> workspace
+            project = self._resolve_project(ws_dir)
+
+            # Read sessions from this file
+            if path.suffix == ".vscdb":
+                sessions = self._read_vscdb(path)
+            else:
+                sessions = self._read_json(path)
+
+            for session_id, requests in sessions.items():
+                seen = self._seen_counts.get(session_id, 0)
+                if len(requests) <= seen:
+                    continue
+
+                # Emit messages for new requests only
+                for req in requests[seen:]:
+                    new_messages.extend(
+                        self._parse_request(req, session_id, project)
+                    )
+                self._seen_counts[session_id] = len(requests)
+
+        return new_messages
+
+    def get_active_session_ids(self, window_seconds: float = 300) -> set[str]:
+        """Return session IDs that have been active recently."""
+        cutoff = time.time() - window_seconds
+        active: set[str] = set()
+        for key, mtime in self._file_mtimes.items():
+            if mtime > cutoff:
+                for sid, count in self._seen_counts.items():
+                    if count > 0:
+                        active.add(sid)
+        return active
+
+    def skip_existing(self):
+        """Advance all tracking state to current end — only track NEW activity."""
+        for path in self.discover_sessions():
+            key = str(path)
+            try:
+                self._file_mtimes[key] = path.stat().st_mtime
+            except OSError:
+                continue
+
+            if path.suffix == ".vscdb":
+                sessions = self._read_vscdb(path)
+            else:
+                sessions = self._read_json(path)
+
+            for session_id, requests in sessions.items():
+                self._seen_counts[session_id] = len(requests)
+
+    def _resolve_project(self, ws_dir: Path) -> str:
+        """Get project name for a workspace directory (cached)."""
+        key = str(ws_dir)
+        if key in self._workspace_projects:
+            return self._workspace_projects[key]
+
+        project = "unknown"
+        ws_file = ws_dir / "workspace.json"
+        if ws_file.exists():
+            try:
+                with open(ws_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                folder = data.get("folder", "")
+                if folder.startswith("file:///"):
+                    folder = folder[len("file:///"):]
+                elif folder.startswith("file://"):
+                    folder = folder[len("file://"):]
+                from urllib.parse import unquote
+
+                folder = unquote(folder).replace("\\", "/").rstrip("/")
+                parts = folder.split("/")
+                if parts and parts[-1]:
+                    project = parts[-1].lower()
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        self._workspace_projects[key] = project
+        return project
+
+    def _read_vscdb(self, db_path: Path) -> dict[str, list[dict]]:
+        """Read chat sessions from a VSCDB file.
+
+        Returns {session_id: [request_dicts]}.
+        """
+        import sqlite3
+
+        sessions: dict[str, list[dict]] = {}
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        except (sqlite3.Error, OSError):
+            return sessions
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name='ItemTable'"
+            )
+            if not cursor.fetchone():
+                conn.close()
+                return sessions
+
+            cursor.execute(
+                "SELECT key, value FROM ItemTable "
+                "WHERE key LIKE 'interactive-session-%' "
+                "OR key LIKE 'chat.data.%'"
+            )
+            for _key, value in cursor.fetchall():
+                if not value:
+                    continue
+                if isinstance(value, bytes):
+                    value = value.decode("utf-8", errors="replace")
+                try:
+                    data = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if isinstance(data, dict) and "requests" in data:
+                    sid = data.get("sessionId", _key)
+                    sessions[sid] = data.get("requests", [])
+        except sqlite3.Error:
+            pass
+        finally:
+            conn.close()
+
+        return sessions
+
+    def _read_json(self, filepath: Path) -> dict[str, list[dict]]:
+        """Read chat sessions from a JSON/JSONL file.
+
+        Returns {session_id: [request_dicts]}.
+        """
+        sessions: dict[str, list[dict]] = {}
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                raw = f.read().strip()
+        except OSError:
+            return sessions
+
+        if not raw:
+            return sessions
+
+        docs: list[dict] = []
+        if filepath.suffix.lower() == ".jsonl":
+            for line in raw.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    docs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+        else:
+            try:
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    docs.append(data)
+            except json.JSONDecodeError:
+                pass
+
+        for data in docs:
+            if isinstance(data, dict) and "requests" in data:
+                sid = data.get("sessionId", str(filepath))
+                sessions[sid] = data.get("requests", [])
+
+        return sessions
+
+    def _parse_request(
+        self, request: dict, session_id: str, project: str
+    ) -> list[Message]:
+        """Parse a single chat request into Messages."""
+        messages: list[Message] = []
+
+        if not isinstance(request, dict):
+            return messages
+
+        timestamp = ""
+        ts_raw = request.get("timestamp")
+        if isinstance(ts_raw, (int, float)) and ts_raw > 0:
+            try:
+                from datetime import datetime, timezone
+
+                dt = datetime.fromtimestamp(ts_raw / 1000, tz=timezone.utc)
+                timestamp = dt.isoformat()
+            except (OSError, ValueError, OverflowError):
+                pass
+
+        model_id = request.get("modelId") or None
+
+        # User message
+        message_obj = request.get("message", {})
+        if isinstance(message_obj, dict):
+            user_text = message_obj.get("text", "")
+        elif isinstance(message_obj, str):
+            user_text = message_obj
+        else:
+            user_text = ""
+
+        if user_text and user_text.strip():
+            messages.append(Message(
+                type="user",
+                timestamp=timestamp,
+                session_id=session_id,
+                project=project,
+                content_chars=len(user_text),
+            ))
+
+        # Assistant response
+        response_obj = request.get("response", {})
+        if isinstance(response_obj, list):
+            response_items = response_obj
+        elif isinstance(response_obj, dict):
+            response_items = response_obj.get("value", [])
+        else:
+            response_items = []
+
+        if isinstance(response_items, list) and response_items:
+            content_chars = 0
+            for item in response_items:
+                if not isinstance(item, dict):
+                    continue
+                kind = item.get("kind", "")
+                if kind == "markdownContent":
+                    content = item.get("content", {})
+                    value = (
+                        content.get("value", "")
+                        if isinstance(content, dict)
+                        else ""
+                    )
+                    content_chars += len(value)
+                elif kind == "codeBlockContent":
+                    content = item.get("content", {})
+                    value = (
+                        content.get("value", "")
+                        if isinstance(content, dict)
+                        else ""
+                    )
+                    content_chars += len(value)
+                elif kind in ("thinkingContent", "thinking"):
+                    continue
+                elif not kind and "value" in item:
+                    value = item.get("value", "")
+                    if isinstance(value, str):
+                        content_chars += len(value)
+
+            if content_chars > 0:
+                messages.append(Message(
+                    type="assistant",
+                    timestamp=timestamp,
+                    session_id=session_id,
+                    project=project,
+                    content_chars=content_chars,
+                    model=model_id,
+                    request_id=session_id + ":" + timestamp,
+                ))
+
+        return messages
