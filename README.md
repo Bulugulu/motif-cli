@@ -109,8 +109,8 @@ Want personalized AI config? Use `motif analyze --prepare` followed by `motif ru
 |------|---------|-------------|----------------|
 | **[Claude Code](https://claude.ai/claude-code)** | ✅ | ✅ | ✅ |
 | **[Cursor IDE](https://cursor.com)** | ✅ | ✅ | ✅ [Extension](https://open-vsx.org/extension/motif/motif) |
-| **[GitHub Copilot CLI](https://github.com/features/copilot)** | ✅ | ✅ | ✅ |
-| **[Copilot in VS Code](https://github.com/features/copilot)** | ✅ | ✅ | ✅ |
+| **[GitHub Copilot CLI](https://github.com/features/copilot)** | ✅ Beta | ✅ Beta | ✅ Beta |
+| **[Copilot in VS Code](https://github.com/features/copilot)** | ✅ Beta | ✅ Beta | ✅ Beta |
 | **[SpecStory](https://github.com/specstoryai/getspecstory)** | 🔜 Coming Soon | 🔜 | — |
 | **[Windsurf](https://codeium.com/windsurf)** | 📋 Planned | 📋 | 📋 |
 | **[Codex CLI](https://openai.com/codex)** | 📋 Planned | 📋 | 📋 |
