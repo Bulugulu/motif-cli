@@ -2,7 +2,7 @@
 
 > How good of a vibe coder are you? Real-time dashboard and assessment report from your AI coding conversations.
 
-Motif is a CLI tool that reads your Cursor and Claude Code conversations and gives you two things: a live dashboard that tracks your AI output in real-time (tokens per minute, concurrency, per-agent efficiency), and a shareable vibe report showing how you work with AI — sessions in parallel, growth over time, personality. It also discovers recurring workflows and generates personalized CLAUDE.md / .cursorrules / skills files tuned to how you actually work.
+Motif is a CLI tool that reads your Cursor, Claude Code, and GitHub Copilot conversations and gives you two things: a live dashboard that tracks your AI output in real-time (tokens per minute, concurrency, per-agent efficiency), and a shareable vibe report showing how you work with AI — sessions in parallel, growth over time, personality. It also discovers recurring workflows and generates personalized CLAUDE.md / .cursorrules / skills files tuned to how you actually work.
 
 ## Key Properties
 
@@ -13,8 +13,8 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 
 ## How It Works
 
-1. `motif extract` gathers conversations from Cursor IDE (state.vscdb) and/or Claude Code (~/.claude/projects/)
-2. `motif live` launches a real-time TUI dashboard tracking AIPM, concurrency, and per-agent efficiency as you code (currently Claude Code; Cursor coming soon)
+1. `motif extract` gathers conversations from Cursor IDE (state.vscdb), Claude Code (~/.claude/projects/), GitHub Copilot CLI (~/.copilot/session-state/), and/or Copilot in VS Code (workspaceStorage)
+2. `motif live` launches a real-time TUI dashboard tracking AIPM, concurrency, and per-agent efficiency as you code (Claude Code and GitHub Copilot CLI; Cursor coming soon)
 3. `motif vibe-report` generates a self-contained HTML assessment — agent concurrency, autonomy ratio, growth scorecard, personality/catchphrases, project constellation
 4. `motif analyze --prepare` runs a data pipeline (truncation, relevance filtering, token budgeting) and produces a structured payload with embedded analysis instructions. Includes the user's existing CLAUDE.md (if found) so the analysis avoids suggesting duplicate rules
 5. The user's IDE agent reads the payload and performs pattern analysis — discovering skills, rules, communication style, and improvement areas
@@ -22,7 +22,7 @@ Motif is a CLI tool that reads your Cursor and Claude Code conversations and giv
 
 ## Commands
 
-- `motif extract cursor|claude|all` — Extract conversations
+- `motif extract cursor|claude|copilot-cli|copilot-vscode|all` — Extract conversations
 - `motif live` — Real-time AI productivity dashboard (TUI). Tracks AIPM, concurrency, per-agent efficiency. Flags: `--compact`, `--summary`, `--history`, `-i <seconds>`
 - `motif list` — Show extracted projects with message counts
 - `motif vibe-report` — Generate a shareable HTML vibe report ("Spotify Wrapped" for vibe coding) from extracted conversations. Self-contained HTML with dark theme, Chart.js charts. Sections: hero stats, agent concurrency (sweep-line algorithm), autonomy ratio timeline, project constellation, growth scorecard, personality/catchphrases. Flags: `--name`, `--output`, `--analysis`

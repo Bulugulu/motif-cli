@@ -15,7 +15,7 @@ console = Console()
 def cli(ctx):
     """Motif — discover your coding patterns from AI conversations.
 
-    Analyze your Cursor and Claude Code conversations to generate
+    Analyze your Cursor, Claude Code, and GitHub Copilot conversations to generate
     personalized .cursorrules, CLAUDE.md, and skills files.
     """
     ctx.ensure_object(dict)
@@ -103,10 +103,80 @@ def extract_claude():
         console.print(f"\nSaved to: [cyan]{first_path.parent}[/cyan]")
 
 
+@extract.command("copilot-cli")
+def extract_copilot_cli():
+    """Extract conversations from GitHub Copilot CLI session files."""
+    from motif.extractors.copilot_cli import extract_conversations, get_copilot_cli_data_path, group_by_project
+    from motif.store import save_conversations
+
+    copilot_path = get_copilot_cli_data_path()
+    console.print(f"Reading from: [cyan]{copilot_path}[/cyan]")
+
+    session_state = copilot_path / "session-state"
+    if not session_state.exists():
+        console.print("[yellow]Copilot CLI session-state directory not found.[/yellow]")
+        console.print("No Copilot CLI conversations to extract.")
+        return
+
+    console.print("Extracting conversations...")
+    messages = extract_conversations(str(copilot_path))
+
+    if not messages:
+        console.print("[yellow]No conversations found.[/yellow]")
+        return
+
+    projects = group_by_project(messages)
+    saved = save_conversations(messages, "copilot-cli")
+
+    console.print(f"\n[green]Extracted {len(messages)} messages across {len(projects)} projects:[/green]")
+    for name, msgs in sorted(projects.items(), key=lambda x: -len(x[1])):
+        user_count = sum(1 for m in msgs if m["role"] == "user")
+        console.print(f"  {name}: {len(msgs)} messages ({user_count} user)")
+
+    if saved:
+        first_path = next(iter(saved.values()))
+        console.print(f"\nSaved to: [cyan]{first_path.parent}[/cyan]")
+
+
+@extract.command("copilot-vscode")
+def extract_copilot_vscode():
+    """Extract conversations from VS Code Copilot Chat sessions."""
+    from motif.extractors.copilot_vscode import extract_conversations, get_copilot_vscode_data_paths, group_by_project
+    from motif.store import save_conversations
+
+    paths = get_copilot_vscode_data_paths()
+    if not paths:
+        console.print("[yellow]No VS Code workspace storage found.[/yellow]")
+        console.print("No VS Code Copilot Chat sessions to extract.")
+        return
+
+    for p, edition in paths:
+        console.print(f"Reading from: [cyan]{p}[/cyan] ({edition})")
+
+    console.print("Extracting conversations...")
+    messages = extract_conversations(paths)
+
+    if not messages:
+        console.print("[yellow]No conversations found.[/yellow]")
+        return
+
+    projects = group_by_project(messages)
+    saved = save_conversations(messages, "copilot-vscode")
+
+    console.print(f"\n[green]Extracted {len(messages)} messages across {len(projects)} projects:[/green]")
+    for name, msgs in sorted(projects.items(), key=lambda x: -len(x[1])):
+        user_count = sum(1 for m in msgs if m["role"] == "user")
+        console.print(f"  {name}: {len(msgs)} messages ({user_count} user)")
+
+    if saved:
+        first_path = next(iter(saved.values()))
+        console.print(f"\nSaved to: [cyan]{first_path.parent}[/cyan]")
+
+
 @extract.command("all")
 @click.pass_context
 def extract_all(ctx):
-    """Extract from all available sources (Cursor + Claude Code)."""
+    """Extract from all available sources (Cursor + Claude Code + Copilot)."""
     console.print("[bold]Extracting from all sources...[/bold]\n")
 
     console.rule("Cursor")
@@ -121,6 +191,20 @@ def extract_all(ctx):
         ctx.invoke(extract_claude)
     except SystemExit:
         console.print("[yellow]Skipping Claude Code (not available).[/yellow]")
+
+    console.print()
+    console.rule("Copilot CLI")
+    try:
+        ctx.invoke(extract_copilot_cli)
+    except SystemExit:
+        console.print("[yellow]Skipping Copilot CLI (not available).[/yellow]")
+
+    console.print()
+    console.rule("Copilot VS Code")
+    try:
+        ctx.invoke(extract_copilot_vscode)
+    except SystemExit:
+        console.print("[yellow]Skipping Copilot VS Code (not available).[/yellow]")
 
     console.print("\n[green]Extraction complete.[/green]")
 
@@ -705,14 +789,15 @@ def live(compact, interval, history, summary, idle_timeout):
     from motif.live.runner import run_live
 
     if summary:
-        from motif.live.poller import ClaudeCodePoller
         from motif.live.metrics import MetricsEngine
         from motif.live.display import render_summary
+        from motif.live.runner import _create_pollers
 
-        poller = ClaudeCodePoller()
+        pollers = _create_pollers()
         engine = MetricsEngine()
-        messages = poller.poll()
-        engine.ingest(messages)
+        for p in pollers:
+            messages = p.poll()
+            engine.ingest(messages)
         metrics = engine.compute()
 
         if metrics.total_tokens > 0:
